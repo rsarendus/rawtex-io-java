@@ -18,6 +18,7 @@
     </properties>
 
     <modules>
+        <module>rawtex-core</module>
     </modules>
 
     <build>
