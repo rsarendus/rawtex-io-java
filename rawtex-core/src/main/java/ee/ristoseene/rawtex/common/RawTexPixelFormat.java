@@ -17,7 +17,7 @@ public interface RawTexPixelFormat extends RawTexFormat {
     int getBlocksPerPixel();
 
     /**
-     * Returns the size of a single pixel in octets (8-bit bytes).
+     * Returns the size of a single pixel in number of octets (8-bit bytes).
      *
      * @return the number of octets per pixel
      */

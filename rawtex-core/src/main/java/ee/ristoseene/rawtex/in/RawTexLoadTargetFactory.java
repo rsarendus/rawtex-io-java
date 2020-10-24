@@ -20,7 +20,7 @@ public interface RawTexLoadTargetFactory {
      * @param format format of the image
      * @param extents extents of the image
      * @param endianness endianness of the image data to load
-     * @param totalDataLength total length (in octets) of the RAWTEX image data to load
+     * @param totalDataLength total length (in number of octets) of the RAWTEX image data to load
      *
      * @return an instance of {@link RawTexLoadTarget}
      *

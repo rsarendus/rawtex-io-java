@@ -6,7 +6,7 @@ package ee.ristoseene.rawtex.common;
 public interface RawTexFormat {
 
     /**
-     * Returns the size of a single block in octets (8-bit bytes).
+     * Returns the size of a single block in number of octets (8-bit bytes).
      * <p>
      * <b>NB:</b> Block size must be a power of two!
      *

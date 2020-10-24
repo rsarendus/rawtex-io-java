@@ -12,7 +12,7 @@ public interface RawTexLoadTarget {
      * The acquired {@link ByteBuffer} will be written to starting from {@link ByteBuffer#position()} and no more than
      * {@link ByteBuffer#remaining()} octets will be written.
      *
-     * @param offset offset (in octets) into the RAWTEX image data to be loaded into the requested {@link ByteBuffer}
+     * @param offset offset (in number of octets) into the RAWTEX image data to be loaded into the requested {@link ByteBuffer}
      * @param remainingLength total number of remaining RAWTEX image data octets to load
      *
      * @return an instance of {@link ByteBuffer} to load image data into

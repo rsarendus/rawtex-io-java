@@ -1,8 +1,7 @@
 package ee.ristoseene.rawtex.in;
 
 import ee.ristoseene.rawtex.common.RawTexFormat;
-
-import java.nio.ByteOrder;
+import ee.ristoseene.rawtex.common.internal.Endianness;
 
 /**
  * A factory for creating instances of {@link RawTexDataLoader}.
@@ -19,12 +18,13 @@ public interface RawTexDataLoaderFactory {
      * @param format format of the input data
      * @param endianness endianness of the input data
      * @param blockCount number of input data blocks
-     * @param compressionFormat input data compression format string (e.g. {@code DEFLATE})
+     * @param compressionFormat input data compression format string (e.g. {@code DEFLATE}),
+     *                          or {@code null} if input data is not compressed
      *
      * @return an instance of {@link RawTexDataLoader}
      *
      * @see RawTexFormat
      */
-    RawTexDataLoader create(RawTexFormat format, ByteOrder endianness, int blockCount, String compressionFormat);
+    RawTexDataLoader create(RawTexFormat format, Endianness endianness, int blockCount, String compressionFormat);
 
 }
