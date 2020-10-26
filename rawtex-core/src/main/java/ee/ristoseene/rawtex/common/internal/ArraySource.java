@@ -16,7 +16,9 @@ public class ArraySource extends InputStream {
     }
 
     public ArraySource(byte[] array, int offset, int length) {
-        Objects.checkFromIndexSize(offset, length, array.length);
+        if (offset < 0 || length < 0 || array.length - offset < length) {
+            throw new ArrayIndexOutOfBoundsException();
+        }
 
         this.array = array;
 
@@ -59,7 +61,12 @@ public class ArraySource extends InputStream {
 
     @Override
     public int read(byte[] b, int off, int len) {
-        Objects.checkFromIndexSize(off, len, b.length);
+        if (off < 0 || len < 0 || b.length - off < len) {
+            throw new ArrayIndexOutOfBoundsException();
+        } else if (len == 0) {
+            return 0;
+        }
+
         final int amount = Math.min(len, available);
 
         System.arraycopy(array, position, b, off, amount);

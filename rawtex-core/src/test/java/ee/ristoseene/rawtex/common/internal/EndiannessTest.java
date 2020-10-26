@@ -164,8 +164,6 @@ public class EndiannessTest {
                 ArrayIndexOutOfBoundsException.class,
                 () -> endianness.read8(inputArray, 1)
         );
-
-        Assertions.assertEquals("Index 1 out of bounds for length 1", caughtException.getMessage());
     }
 
     @Test
@@ -195,8 +193,6 @@ public class EndiannessTest {
                 ArrayIndexOutOfBoundsException.class,
                 () -> endianness.read16(inputArray, 1)
         );
-
-        Assertions.assertEquals("Index 2 out of bounds for length 2", caughtException.getMessage());
     }
 
     @Test
@@ -226,8 +222,6 @@ public class EndiannessTest {
                 ArrayIndexOutOfBoundsException.class,
                 () -> endianness.read32(inputArray, 1)
         );
-
-        Assertions.assertEquals("Index 4 out of bounds for length 4", caughtException.getMessage());
     }
 
     @Test
@@ -257,8 +251,6 @@ public class EndiannessTest {
                 ArrayIndexOutOfBoundsException.class,
                 () -> endianness.read64(inputArray, 1)
         );
-
-        Assertions.assertEquals("Index 8 out of bounds for length 8", caughtException.getMessage());
     }
 
 }
