@@ -2,7 +2,6 @@ package ee.ristoseene.rawtex.common.internal;
 
 import java.io.EOFException;
 import java.io.InputStream;
-import java.util.Objects;
 
 public class ArraySource extends InputStream {
 
