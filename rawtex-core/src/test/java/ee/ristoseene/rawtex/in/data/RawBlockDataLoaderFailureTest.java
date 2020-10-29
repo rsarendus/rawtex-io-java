@@ -30,7 +30,7 @@ public class RawBlockDataLoaderFailureTest {
 
         IllegalArgumentException caughtException = Assertions.assertThrows(
                 IllegalArgumentException.class,
-                () -> new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness), 1, invalidMaxTransferBufferSize)
+                () -> new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness), invalidMaxTransferBufferSize)
         );
 
         Assertions.assertEquals("Invalid maximum transfer buffer size: " + invalidMaxTransferBufferSize, caughtException.getMessage());
@@ -44,7 +44,7 @@ public class RawBlockDataLoaderFailureTest {
 
         IllegalArgumentException caughtException = Assertions.assertThrows(
                 IllegalArgumentException.class,
-                () -> new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness), 1, invalidTransferBuffer)
+                () -> new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness), invalidTransferBuffer)
         );
 
         Assertions.assertEquals("Invalid pre-allocated transfer buffer size: " + invalidTransferBufferSize, caughtException.getMessage());
@@ -52,18 +52,21 @@ public class RawBlockDataLoaderFailureTest {
 
     @MethodSource("blockSizeAndEndiannessCombinations")
     @ParameterizedTest(name = "block size: {0}, endianness: {1}")
-    public void testLoadFailsOnInputLengthMismatch(int blockSize, ByteOrder endianness) {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness), 1);
+    public void testLoadFailsOnInputLengthAndDataLengthMismatch(int blockSize, ByteOrder endianness) {
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness));
         RawTexLoadTarget loadTarget = Mockito.mock(RawTexLoadTarget.class);
         InputStream in = Mockito.mock(InputStream.class);
         int invalidInputLength = blockSize + 1;
 
         IllegalArgumentException caughtException = Assertions.assertThrows(
                 IllegalArgumentException.class,
-                () -> dataLoader.load(in, invalidInputLength, loadTarget)
+                () -> dataLoader.load(in, invalidInputLength, loadTarget, blockSize)
         );
 
-        Assertions.assertEquals("Invalid input stream length: " + invalidInputLength, caughtException.getMessage());
+        Assertions.assertEquals(
+                String.format("Input length (%d) does not match data length (%d)", invalidInputLength, blockSize),
+                caughtException.getMessage()
+        );
         Mockito.verifyNoInteractions(loadTarget, in);
     }
 
@@ -74,10 +77,37 @@ public class RawBlockDataLoaderFailureTest {
                 );
     }
 
+    @MethodSource("nonByteBlockSizeAndEndiannessCombinations")
+    @ParameterizedTest(name = "block size: {0}, endianness: {1}")
+    public void testLoadFailsOnDataLengthNotMultipleOfBlockSize(int blockSize, ByteOrder endianness) {
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness));
+        RawTexLoadTarget loadTarget = Mockito.mock(RawTexLoadTarget.class);
+        InputStream in = Mockito.mock(InputStream.class);
+        int invalidDataLength = blockSize + 1;
+
+        IllegalArgumentException caughtException = Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> dataLoader.load(in, invalidDataLength, loadTarget, invalidDataLength)
+        );
+
+        Assertions.assertEquals(
+                String.format("Data length (%d) is not a multiple of block size (%d)", invalidDataLength, blockSize),
+                caughtException.getMessage()
+        );
+        Mockito.verifyNoInteractions(loadTarget, in);
+    }
+
+    private static Stream<Arguments> nonByteBlockSizeAndEndiannessCombinations() {
+        return Stream.of(Short.BYTES, Integer.BYTES, Long.BYTES)
+                .flatMap(blockSize -> Stream.of(ByteOrder.BIG_ENDIAN, ByteOrder.LITTLE_ENDIAN)
+                        .map(endianness -> Arguments.of(blockSize, endianness))
+                );
+    }
+
     @MethodSource("blockSizeAndEndiannessAndInputTypeCombinations")
     @ParameterizedTest(name = "block size: {0}, endianness: {1}, input type: {2}")
     public void testLoadFailsOnMissingTargetBuffer(int blockSize, ByteOrder endianness, Class<? extends InputStream> inputType) throws IOException {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness), 1);
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness));
         RawTexLoadTarget loadTarget = Mockito.mock(RawTexLoadTarget.class);
         InputStream in = Mockito.mock(inputType);
 
@@ -85,7 +115,7 @@ public class RawBlockDataLoaderFailureTest {
 
         NullPointerException caughtException = Assertions.assertThrows(
                 NullPointerException.class,
-                () -> dataLoader.load(in, blockSize, loadTarget)
+                () -> dataLoader.load(in, blockSize, loadTarget, blockSize)
         );
 
         Assertions.assertEquals("Target buffer missing", caughtException.getMessage());
@@ -100,7 +130,7 @@ public class RawBlockDataLoaderFailureTest {
     @MethodSource("blockSizeAndEndiannessAndInputTypeCombinations")
     @ParameterizedTest(name = "block size: {0}, endianness: {1}, input type: {2}")
     public void testLoadFailsOnReadOnlyTargetBuffer(int blockSize, ByteOrder endianness, Class<? extends InputStream> inputType) throws IOException {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness), 1);
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness));
         RawTexLoadTarget loadTarget = Mockito.mock(RawTexLoadTarget.class);
         InputStream in = Mockito.mock(inputType);
 
@@ -109,7 +139,7 @@ public class RawBlockDataLoaderFailureTest {
 
         IllegalStateException caughtException = Assertions.assertThrows(
                 IllegalStateException.class,
-                () -> dataLoader.load(in, blockSize, loadTarget)
+                () -> dataLoader.load(in, blockSize, loadTarget, blockSize)
         );
 
         Assertions.assertEquals("Target buffer is read-only", caughtException.getMessage());
@@ -124,7 +154,7 @@ public class RawBlockDataLoaderFailureTest {
     @MethodSource("blockSizeAndEndiannessAndInputTypeCombinations")
     @ParameterizedTest(name = "block size: {0}, endianness: {1}, input type: {2}")
     public void testLoadFailsOnInvalidTargetBufferLength(int blockSize, ByteOrder endianness, Class<? extends InputStream> inputType) throws IOException {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness), 1);
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness));
         RawTexLoadTarget loadTarget = Mockito.mock(RawTexLoadTarget.class);
         InputStream in = Mockito.mock(inputType);
 
@@ -134,7 +164,7 @@ public class RawBlockDataLoaderFailureTest {
 
         IllegalStateException caughtException = Assertions.assertThrows(
                 IllegalStateException.class,
-                () -> dataLoader.load(in, blockSize, loadTarget)
+                () -> dataLoader.load(in, blockSize, loadTarget, blockSize)
         );
 
         Assertions.assertEquals("Invalid target buffer length: " + invalidTargetLength, caughtException.getMessage());
@@ -149,7 +179,7 @@ public class RawBlockDataLoaderFailureTest {
     @MethodSource("blockSizeAndEndiannessAndInputTypeCombinations")
     @ParameterizedTest(name = "block size: {0}, endianness: {1}, input type: {2}")
     public void testLoadFailsOnTooLongTargetBufferLength(int blockSize, ByteOrder endianness, Class<? extends InputStream> inputType) throws IOException {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness), 1);
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness));
         RawTexLoadTarget loadTarget = Mockito.mock(RawTexLoadTarget.class);
         InputStream in = Mockito.mock(inputType);
 
@@ -159,7 +189,7 @@ public class RawBlockDataLoaderFailureTest {
 
         IllegalStateException caughtException = Assertions.assertThrows(
                 IllegalStateException.class,
-                () -> dataLoader.load(in, blockSize, loadTarget)
+                () -> dataLoader.load(in, blockSize, loadTarget, blockSize)
         );
 
         Assertions.assertEquals("Invalid target buffer length: " + tooLongTargetLength, caughtException.getMessage());
@@ -183,13 +213,13 @@ public class RawBlockDataLoaderFailureTest {
     @MethodSource("blockSizeAndEndiannessCombinations")
     @ParameterizedTest(name = "block size: {0}, in: [{1}]")
     public void testLoadFromArrayFailsWithEOF(int blockSize, ByteOrder inEndianness) {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(inEndianness), 1);
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(inEndianness));
         RawTexLoadTarget loadTarget = Mockito.mock(RawTexLoadTarget.class);
         InputStream in = new ArraySource(new byte[blockSize - 1]);
 
         EOFException caughtException = Assertions.assertThrows(
                 EOFException.class,
-                () -> dataLoader.load(in, blockSize, loadTarget)
+                () -> dataLoader.load(in, blockSize, loadTarget, blockSize)
         );
 
         Assertions.assertEquals("Unexpected end of input", caughtException.getMessage());
@@ -199,7 +229,7 @@ public class RawBlockDataLoaderFailureTest {
     @MethodSource("parameterCombinations")
     @ParameterizedTest(name = "block size: {0}, in: [{1}], out: [{2}, {3}]")
     public void testLoadStreamFailsWithEOF(int blockSize, ByteOrder inEndianness, ByteOrder outEndianness, TargetBufferFactory outFactory) {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(inEndianness), 1);
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(inEndianness));
         RawTexLoadTarget loadTarget = Mockito.mock(RawTexLoadTarget.class);
         InputStream in = new ByteArrayInputStream(new byte[blockSize - 1]);
 
@@ -208,7 +238,7 @@ public class RawBlockDataLoaderFailureTest {
 
         EOFException caughtException = Assertions.assertThrows(
                 EOFException.class,
-                () -> dataLoader.load(in, blockSize, loadTarget)
+                () -> dataLoader.load(in, blockSize, loadTarget, blockSize)
         );
 
         Assertions.assertEquals("Unexpected end of input", caughtException.getMessage());

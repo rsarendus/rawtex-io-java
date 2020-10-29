@@ -10,13 +10,11 @@ import java.util.Objects;
 public abstract class AbstractBlockWiseDataLoader implements RawTexDataLoader {
 
     protected final Endianness endianness;
-    protected final int blockCount;
     protected final int blockSize;
 
-    protected AbstractBlockWiseDataLoader(RawTexFormat format, Endianness endianness, int blockCount) {
+    protected AbstractBlockWiseDataLoader(RawTexFormat format, Endianness endianness) {
         this.blockSize = Objects.requireNonNull(format, "Format not provided").getOctetsPerBlock();
         this.endianness = Objects.requireNonNull(endianness, "Endianness not provided");
-        this.blockCount = blockCount;
     }
 
     protected int validateTargetBufferAndAcquireBlockCount(ByteBuffer targetBuffer) {

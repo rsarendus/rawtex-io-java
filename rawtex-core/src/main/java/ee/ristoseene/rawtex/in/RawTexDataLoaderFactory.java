@@ -13,11 +13,10 @@ public interface RawTexDataLoaderFactory {
 
     /**
      * Returns a {@link RawTexDataLoader} that is able to load RAWTEX image data with the specified format, source
-     * endianness, number of data blocks and compression format.
+     * endianness and compression format.
      *
      * @param format format of the input data
      * @param endianness endianness of the input data
-     * @param blockCount number of input data blocks
      * @param compressionFormat input data compression format string (e.g. {@code DEFLATE}),
      *                          or {@code null} if input data is not compressed
      *
@@ -25,6 +24,6 @@ public interface RawTexDataLoaderFactory {
      *
      * @see RawTexFormat
      */
-    RawTexDataLoader create(RawTexFormat format, Endianness endianness, int blockCount, String compressionFormat);
+    RawTexDataLoader create(RawTexFormat format, Endianness endianness, String compressionFormat);
 
 }

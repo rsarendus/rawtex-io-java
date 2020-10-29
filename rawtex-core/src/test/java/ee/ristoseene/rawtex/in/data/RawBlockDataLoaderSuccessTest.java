@@ -21,9 +21,10 @@ import java.util.stream.Stream;
 public class RawBlockDataLoaderSuccessTest {
 
     @MethodSource("parameterCombinations")
-    @ParameterizedTest(name = "in: [{0}, {1}], out: [{2}, {3}], data length: {4}")
-    public void testLoad8(ByteOrder inEndianness, InputFactory inFactory, ByteOrder outEndianness, TargetBufferFactory outFactory, int length) throws IOException {
-        byte[] pixelData = TestBufferUtils.generateRandom8(length);
+    @ParameterizedTest(name = "in: [{0}, {1}], out: [{2}, {3}], block count: {4}")
+    public void testLoad8(ByteOrder inEndianness, InputFactory inFactory, ByteOrder outEndianness, TargetBufferFactory outFactory, int blockCount) throws IOException {
+        byte[] pixelData = TestBufferUtils.generateRandom8(blockCount);
+        int length = blockCount * Byte.BYTES;
 
         InputStream in = inFactory.create(pixelData.clone());
         TestLoadTarget loadTarget = new TestLoadTarget(
@@ -33,18 +34,18 @@ public class RawBlockDataLoaderSuccessTest {
 
         new RawBlockDataLoader(
                 () -> Byte.BYTES,
-                Endianness.of(inEndianness),
-                length
+                Endianness.of(inEndianness)
         )
-                .load(in, length, loadTarget);
+                .load(in, length, loadTarget, length);
 
         loadTarget.assertReleased();
     }
 
     @MethodSource("parameterCombinations")
-    @ParameterizedTest(name = "in: [{0}, {1}], out: [{2}, {3}], data length: {4}")
-    public void testLoad16(ByteOrder inEndianness, InputFactory inFactory, ByteOrder outEndianness, TargetBufferFactory outFactory, int length) throws IOException {
-        short[] pixelData = TestBufferUtils.generateRandom16(length);
+    @ParameterizedTest(name = "in: [{0}, {1}], out: [{2}, {3}], block count: {4}")
+    public void testLoad16(ByteOrder inEndianness, InputFactory inFactory, ByteOrder outEndianness, TargetBufferFactory outFactory, int blockCount) throws IOException {
+        short[] pixelData = TestBufferUtils.generateRandom16(blockCount);
+        int length = blockCount * Short.BYTES;
 
         InputStream in = inFactory.create(TestBufferUtils.toBytes(pixelData, inEndianness));
         TestLoadTarget loadTarget = new TestLoadTarget(
@@ -54,18 +55,18 @@ public class RawBlockDataLoaderSuccessTest {
 
         new RawBlockDataLoader(
                 () -> Short.BYTES,
-                Endianness.of(inEndianness),
-                length
+                Endianness.of(inEndianness)
         )
-                .load(in, length * Short.BYTES, loadTarget);
+                .load(in, length, loadTarget, length);
 
         loadTarget.assertReleased();
     }
 
     @MethodSource("parameterCombinations")
-    @ParameterizedTest(name = "in: [{0}, {1}], out: [{2}, {3}], data length: {4}")
-    public void testLoad32(ByteOrder inEndianness, InputFactory inFactory, ByteOrder outEndianness, TargetBufferFactory outFactory, int length) throws IOException {
-        int[] pixelData = TestBufferUtils.generateRandom32(length);
+    @ParameterizedTest(name = "in: [{0}, {1}], out: [{2}, {3}], block count: {4}")
+    public void testLoad32(ByteOrder inEndianness, InputFactory inFactory, ByteOrder outEndianness, TargetBufferFactory outFactory, int blockCount) throws IOException {
+        int[] pixelData = TestBufferUtils.generateRandom32(blockCount);
+        int length = blockCount * Integer.BYTES;
 
         InputStream in = inFactory.create(TestBufferUtils.toBytes(pixelData, inEndianness));
         TestLoadTarget loadTarget = new TestLoadTarget(
@@ -75,18 +76,18 @@ public class RawBlockDataLoaderSuccessTest {
 
         new RawBlockDataLoader(
                 () -> Integer.BYTES,
-                Endianness.of(inEndianness),
-                length
+                Endianness.of(inEndianness)
         )
-                .load(in, length * Integer.BYTES, loadTarget);
+                .load(in, length, loadTarget, length);
 
         loadTarget.assertReleased();
     }
 
     @MethodSource("parameterCombinations")
-    @ParameterizedTest(name = "in: [{0}, {1}], out: [{2}, {3}], data length: {4}")
-    public void testLoad64(ByteOrder inEndianness, InputFactory inFactory, ByteOrder outEndianness, TargetBufferFactory outFactory, int length) throws IOException {
-        long[] pixelData = TestBufferUtils.generateRandom64(length);
+    @ParameterizedTest(name = "in: [{0}, {1}], out: [{2}, {3}], block count: {4}")
+    public void testLoad64(ByteOrder inEndianness, InputFactory inFactory, ByteOrder outEndianness, TargetBufferFactory outFactory, int blockCount) throws IOException {
+        long[] pixelData = TestBufferUtils.generateRandom64(blockCount);
+        int length = blockCount * Long.BYTES;
 
         InputStream in = inFactory.create(TestBufferUtils.toBytes(pixelData, inEndianness));
         TestLoadTarget loadTarget = new TestLoadTarget(
@@ -96,10 +97,9 @@ public class RawBlockDataLoaderSuccessTest {
 
         new RawBlockDataLoader(
                 () -> Long.BYTES,
-                Endianness.of(inEndianness),
-                length
+                Endianness.of(inEndianness)
         )
-                .load(in, length * Long.BYTES, loadTarget);
+                .load(in, length, loadTarget, length);
 
         loadTarget.assertReleased();
     }
