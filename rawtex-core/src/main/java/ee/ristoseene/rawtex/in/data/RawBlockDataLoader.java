@@ -1,21 +1,23 @@
 package ee.ristoseene.rawtex.in.data;
 
 import ee.ristoseene.rawtex.common.RawTexFormat;
+import ee.ristoseene.rawtex.common.data.TransferBufferAllocator;
 import ee.ristoseene.rawtex.common.internal.ArraySource;
 import ee.ristoseene.rawtex.common.internal.CommonIO;
 import ee.ristoseene.rawtex.common.internal.Endianness;
 import ee.ristoseene.rawtex.in.RawTexLoadTarget;
-import ee.ristoseene.rawtex.in.internal.AbstractBlockWiseDataLoader;
+import ee.ristoseene.rawtex.in.internal.AbstractBlockDataLoader;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
 /**
  * An implementation of {@link ee.ristoseene.rawtex.in.RawTexDataLoader} for loading uncompressed data from input stream
  * into any kind of {@link ByteBuffer}s, providing automatic endianness conversion as necessary.
  * The loader counts loadable data in blocks, thus the loader can only load and transfer into the destination buffer
- * chunks of data with length evenly divisible by block size ({@link RawTexFormat#getOctetsPerBlock()}).
+ * chunks of data with lengths equal to multiples of block size ({@link RawTexFormat#getOctetsPerBlock()}).
  * <p>
  * Depending on the type of input and/or output, certain fast paths could be chosen:
  * <ul>
@@ -26,69 +28,34 @@ import java.nio.ByteBuffer;
  * </ul>
  * <p>
  * In case input data is not backed by a byte array, and target buffer is either not an array-backed buffer or endianness
- * conversion is necessary, then a transfer buffer (a byte array) needs to be used for loading. For transfer buffer,
- * a pre-allocated byte array could be specified or maximum length for the buffer could be specified, in which
- * case the buffer will be allocated and cached internally, as necessary.
+ * conversion is necessary, then temporary byte arrays need to be allocated in order to be able read bytes from input
+ * streams in chunks. Such temporary byte arrays are obtained automatically as needed via
+ * {@link TransferBufferAllocator} interface.
+ * In case allocating transfer buffers is necessary, instances of this class are guaranteed to allocate a single transfer
+ * buffer at a time, provided an instance is not accessed from multiple threads concurrently nor called recursively - i.e.
+ * a call to {@link TransferBufferAllocator#allocate(int, int)} is always followed by a corresponding call to
+ * {@link TransferBufferAllocator#free(byte[])} before another {@link TransferBufferAllocator#allocate(int, int)}
+ * is invoked. The minimum required transfer buffer size is equal to block size.
  */
-public class RawBlockDataLoader extends AbstractBlockWiseDataLoader {
+public class RawBlockDataLoader extends AbstractBlockDataLoader {
 
-    private static final int DEFAULT_TRANSFER_BUFFER_BLOCK_COUNT = 1024;
-
-    private final int transferBufferBlockCount;
-    private byte[] transferBuffer;
+    private final TransferBufferAllocator transferBufferAllocator;
 
     /**
-     * Constructs a {@code RawBlockDataLoader} with the specified input data format and input data endianness,
-     * using the default transfer buffer size of '{@link RawTexFormat#getOctetsPerBlock()}
-     * {@code *} {@value DEFAULT_TRANSFER_BUFFER_BLOCK_COUNT}'.
+     * Constructs a {@code RawBlockDataLoader} with the specified input data format, input data endianness and transfer
+     * buffer allocator.
      *
      * @param format format of the input data (dictating the block size in number of octets)
      * @param endianness endianness of the input data
-     */
-    public RawBlockDataLoader(RawTexFormat format, Endianness endianness) {
-        super(format, endianness);
-        transferBufferBlockCount = DEFAULT_TRANSFER_BUFFER_BLOCK_COUNT;
-    }
-
-    /**
-     * Constructs a {@code RawBlockDataLoader} with the specified input data format and input data endianness,
-     * using the specified maximum transfer buffer size.
+     * @param transferBufferAllocator an allocator providing temporary byte arrays for transferring data from input stream
+     *                                into the destination buffer
      *
-     * @param format format of the input data (dictating the block size in number of octets)
-     * @param endianness endianness of the input data
-     * @param maxTransferBufferSize maximum number of bytes to allocate for a transfer buffer
-     *
-     * @throws IllegalArgumentException if the maximum transfer buffer size is less than {@link RawTexFormat#getOctetsPerBlock()}
+     * @throws NullPointerException if {@code format}, {@code endianness} or {@code transferBufferAllocator} is {@code null}
      */
-    public RawBlockDataLoader(RawTexFormat format, Endianness endianness, int maxTransferBufferSize) {
+    public RawBlockDataLoader(RawTexFormat format, Endianness endianness, TransferBufferAllocator transferBufferAllocator) {
         super(format, endianness);
 
-        if (maxTransferBufferSize < blockSize) {
-            throw new IllegalArgumentException("Invalid maximum transfer buffer size: " + maxTransferBufferSize);
-        }
-
-        transferBufferBlockCount = maxTransferBufferSize / blockSize;
-    }
-
-    /**
-     * Constructs a {@code RawBlockDataLoader} with the specified input data format and input data endianness,
-     * with the specified byte array as a transfer buffer.
-     *
-     * @param format format of the input data (dictating the block size in number of octets)
-     * @param endianness endianness of the input data
-     * @param preAllocatedTransferBuffer pre-allocated byte array to use as a transfer buffer
-     *
-     * @throws IllegalArgumentException if the pre-allocated transfer buffer size is less than {@link RawTexFormat#getOctetsPerBlock()}
-     */
-    public RawBlockDataLoader(RawTexFormat format, Endianness endianness, byte[] preAllocatedTransferBuffer) {
-        super(format, endianness);
-
-        if (preAllocatedTransferBuffer.length < blockSize) {
-            throw new IllegalArgumentException("Invalid pre-allocated transfer buffer size: " + preAllocatedTransferBuffer.length);
-        }
-
-        transferBufferBlockCount = preAllocatedTransferBuffer.length / blockSize;
-        transferBuffer = preAllocatedTransferBuffer;
+        this.transferBufferAllocator = Objects.requireNonNull(transferBufferAllocator, "Transfer buffer allocator not provided");
     }
 
     /**
@@ -102,7 +69,7 @@ public class RawBlockDataLoader extends AbstractBlockWiseDataLoader {
      * @throws IOException if an I/O error occurs
      * @throws IllegalArgumentException if input length does not match data length or if data length is not a multiple of block size
      * @throws IllegalStateException if load target buffer's {@link ByteBuffer#remaining()} is less that block size,
-     * isn't evenly divisible by block size or is greater than the remaining data length
+     * is not multiple block size or is greater than the remaining data length
      */
     @Override
     public void load(InputStream in, int inputLength, RawTexLoadTarget loadTarget, int dataLength) throws IOException {
@@ -177,42 +144,48 @@ public class RawBlockDataLoader extends AbstractBlockWiseDataLoader {
     }
 
     private void putViaTransferBuffer(InputStream in, ByteBuffer out, int length) throws IOException {
-        if (transferBuffer == null) {
-            transferBuffer = new byte[blockSize * transferBufferBlockCount];
+        byte[] transferBuffer = transferBufferAllocator.allocate(blockSize, length);
+
+        try {
+            final int transferBufferLength = validateTransferBufferAndGetBlockCount(transferBuffer) * blockSize;
+
+            do {
+                final int transferLength = Math.min(length, transferBufferLength);
+
+                if (in.read(transferBuffer, 0, transferLength) != transferLength) {
+                    throw CommonIO.unexpectedEndOfInputException();
+                }
+
+                out.put(transferBuffer, 0, transferLength);
+
+                length -= transferLength;
+            } while (length > 0);
+        } finally {
+            transferBufferAllocator.free(transferBuffer);
         }
-
-        final int transferBufferLength = transferBuffer.length;
-
-        do {
-            final int transferLength = Math.min(length, transferBufferLength);
-
-            if (in.read(transferBuffer, 0, transferLength) != transferLength) {
-                throw CommonIO.unexpectedEndOfInputException();
-            }
-
-            out.put(transferBuffer, 0, transferLength);
-
-            length -= transferLength;
-        } while (length > 0);
     }
 
     private void transferViaTransferBuffer(InputStream in, ByteBuffer out, int blockCount) throws IOException {
-        if (transferBuffer == null) {
-            transferBuffer = new byte[blockSize * transferBufferBlockCount];
+        byte[] transferBuffer = transferBufferAllocator.allocate(blockSize, blockSize * blockCount);
+
+        try {
+            final int transferBufferBlockCount = validateTransferBufferAndGetBlockCount(transferBuffer);
+
+            do {
+                final int transferBlockCount = Math.min(blockCount, transferBufferBlockCount);
+                final int transferLength = blockSize * transferBlockCount;
+
+                if (in.read(transferBuffer, 0, transferLength) != transferLength) {
+                    throw CommonIO.unexpectedEndOfInputException();
+                }
+
+                transferBlockWise(transferBuffer, 0, transferBlockCount, out);
+
+                blockCount -= transferBlockCount;
+            } while (blockCount > 0);
+        } finally {
+            transferBufferAllocator.free(transferBuffer);
         }
-
-        do {
-            final int transferBlockCount = Math.min(blockCount, transferBufferBlockCount);
-            final int transferLength = blockSize * transferBlockCount;
-
-            if (in.read(transferBuffer, 0, transferLength) != transferLength) {
-                throw CommonIO.unexpectedEndOfInputException();
-            }
-
-            transferBlockWise(transferBuffer, 0, transferBlockCount, out);
-
-            blockCount -= transferBlockCount;
-        } while (blockCount > 0);
     }
 
     private static void readIntoArrayBackedBuffer(InputStream in, ByteBuffer out, int length) throws IOException {
@@ -223,6 +196,20 @@ public class RawBlockDataLoader extends AbstractBlockWiseDataLoader {
         }
 
         out.position(position + length);
+    }
+
+    private int validateTransferBufferAndGetBlockCount(byte[] transferBuffer) {
+        if (transferBuffer == null) {
+            throw new NullPointerException("Transfer buffer missing");
+        }
+
+        final int transferBufferLength = transferBuffer.length;
+
+        if (transferBufferLength < blockSize) {
+            throw new IllegalStateException("Transfer buffer too short: " + transferBufferLength);
+        }
+
+        return transferBufferLength / blockSize;
     }
 
 }

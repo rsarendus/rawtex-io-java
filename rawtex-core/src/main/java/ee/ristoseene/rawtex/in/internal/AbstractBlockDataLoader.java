@@ -7,12 +7,12 @@ import ee.ristoseene.rawtex.in.RawTexDataLoader;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-public abstract class AbstractBlockWiseDataLoader implements RawTexDataLoader {
+public abstract class AbstractBlockDataLoader implements RawTexDataLoader {
 
     protected final Endianness endianness;
     protected final int blockSize;
 
-    protected AbstractBlockWiseDataLoader(RawTexFormat format, Endianness endianness) {
+    protected AbstractBlockDataLoader(RawTexFormat format, Endianness endianness) {
         this.blockSize = Objects.requireNonNull(format, "Format not provided").getOctetsPerBlock();
         this.endianness = Objects.requireNonNull(endianness, "Endianness not provided");
     }

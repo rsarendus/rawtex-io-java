@@ -2,6 +2,8 @@ package ee.ristoseene.rawtex.in.data;
 
 import ee.ristoseene.rawtex.common.internal.Endianness;
 import ee.ristoseene.rawtex.common.test.TestBufferUtils;
+import ee.ristoseene.rawtex.common.test.TestStaticTransferBufferAllocator;
+import ee.ristoseene.rawtex.common.test.TestTransferBufferAllocator;
 import ee.ristoseene.rawtex.in.test.ByteArrayInputFactory;
 import ee.ristoseene.rawtex.in.test.DirectBufferFactory;
 import ee.ristoseene.rawtex.in.test.InputFactory;
@@ -20,6 +22,8 @@ import java.util.stream.Stream;
 
 public class RawBlockDataLoaderSuccessTest {
 
+    private static final int TRANSFER_BUFFER_LENGTH = 137;
+
     @MethodSource("parameterCombinations")
     @ParameterizedTest(name = "in: [{0}, {1}], out: [{2}, {3}], block count: {4}")
     public void testLoad8(ByteOrder inEndianness, InputFactory inFactory, ByteOrder outEndianness, TargetBufferFactory outFactory, int blockCount) throws IOException {
@@ -27,6 +31,7 @@ public class RawBlockDataLoaderSuccessTest {
         int length = blockCount * Byte.BYTES;
 
         InputStream in = inFactory.create(pixelData.clone());
+        TestTransferBufferAllocator transferBufferAllocator = new TestStaticTransferBufferAllocator(TRANSFER_BUFFER_LENGTH);
         TestLoadTarget loadTarget = new TestLoadTarget(
                 pixelData,
                 (o, l) -> outFactory.createFor(o, l).order(outEndianness)
@@ -34,11 +39,13 @@ public class RawBlockDataLoaderSuccessTest {
 
         new RawBlockDataLoader(
                 () -> Byte.BYTES,
-                Endianness.of(inEndianness)
+                Endianness.of(inEndianness),
+                transferBufferAllocator
         )
                 .load(in, length, loadTarget, length);
 
         loadTarget.assertReleased();
+        transferBufferAllocator.assertFreed();
     }
 
     @MethodSource("parameterCombinations")
@@ -48,6 +55,7 @@ public class RawBlockDataLoaderSuccessTest {
         int length = blockCount * Short.BYTES;
 
         InputStream in = inFactory.create(TestBufferUtils.toBytes(pixelData, inEndianness));
+        TestTransferBufferAllocator transferBufferAllocator = new TestStaticTransferBufferAllocator(TRANSFER_BUFFER_LENGTH);
         TestLoadTarget loadTarget = new TestLoadTarget(
                 TestBufferUtils.toBytes(pixelData, outEndianness),
                 (o, l) -> outFactory.createFor(o, l).order(outEndianness)
@@ -55,11 +63,13 @@ public class RawBlockDataLoaderSuccessTest {
 
         new RawBlockDataLoader(
                 () -> Short.BYTES,
-                Endianness.of(inEndianness)
+                Endianness.of(inEndianness),
+                transferBufferAllocator
         )
                 .load(in, length, loadTarget, length);
 
         loadTarget.assertReleased();
+        transferBufferAllocator.assertFreed();
     }
 
     @MethodSource("parameterCombinations")
@@ -69,6 +79,7 @@ public class RawBlockDataLoaderSuccessTest {
         int length = blockCount * Integer.BYTES;
 
         InputStream in = inFactory.create(TestBufferUtils.toBytes(pixelData, inEndianness));
+        TestTransferBufferAllocator transferBufferAllocator = new TestStaticTransferBufferAllocator(TRANSFER_BUFFER_LENGTH);
         TestLoadTarget loadTarget = new TestLoadTarget(
                 TestBufferUtils.toBytes(pixelData, outEndianness),
                 (o, l) -> outFactory.createFor(o, l).order(outEndianness)
@@ -76,11 +87,13 @@ public class RawBlockDataLoaderSuccessTest {
 
         new RawBlockDataLoader(
                 () -> Integer.BYTES,
-                Endianness.of(inEndianness)
+                Endianness.of(inEndianness),
+                transferBufferAllocator
         )
                 .load(in, length, loadTarget, length);
 
         loadTarget.assertReleased();
+        transferBufferAllocator.assertFreed();
     }
 
     @MethodSource("parameterCombinations")
@@ -90,6 +103,7 @@ public class RawBlockDataLoaderSuccessTest {
         int length = blockCount * Long.BYTES;
 
         InputStream in = inFactory.create(TestBufferUtils.toBytes(pixelData, inEndianness));
+        TestTransferBufferAllocator transferBufferAllocator = new TestStaticTransferBufferAllocator(TRANSFER_BUFFER_LENGTH);
         TestLoadTarget loadTarget = new TestLoadTarget(
                 TestBufferUtils.toBytes(pixelData, outEndianness),
                 (o, l) -> outFactory.createFor(o, l).order(outEndianness)
@@ -97,11 +111,13 @@ public class RawBlockDataLoaderSuccessTest {
 
         new RawBlockDataLoader(
                 () -> Long.BYTES,
-                Endianness.of(inEndianness)
+                Endianness.of(inEndianness),
+                transferBufferAllocator
         )
                 .load(in, length, loadTarget, length);
 
         loadTarget.assertReleased();
+        transferBufferAllocator.assertFreed();
     }
 
     private static Stream<Arguments> parameterCombinations() {
