@@ -68,8 +68,8 @@ public class RawBlockDataLoader extends AbstractBlockDataLoader {
      *
      * @throws IOException if an I/O error occurs
      * @throws IllegalArgumentException if input length does not match data length or if data length is not a multiple of block size
-     * @throws IllegalStateException if load target buffer's {@link ByteBuffer#remaining()} is less that block size,
-     * is not multiple block size or is greater than the remaining data length
+     * @throws IllegalStateException if load target buffer's {@link ByteBuffer#remaining()} is less than block size,
+     * is not a multiple of block size or is greater than the remaining data length
      */
     @Override
     public void load(InputStream in, int inputLength, RawTexLoadTarget loadTarget, int dataLength) throws IOException {
