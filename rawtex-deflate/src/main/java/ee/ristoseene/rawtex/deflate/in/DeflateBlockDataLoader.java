@@ -315,11 +315,9 @@ public class DeflateBlockDataLoader extends AbstractBlockDataLoader {
     private int readIntoInflaterAndReturnRemainingInputLength(InputStream in, byte[] readBuffer, int remainingInputLength) throws IOException {
         final int readLength = Math.min(readBuffer.length, remainingInputLength);
 
-        if (in.read(readBuffer, 0, readLength) != readLength) {
-            throw CommonIO.unexpectedEndOfInputException();
-        }
-
+        CommonIO.readOctets(in, readBuffer, 0, readLength);
         inflater.setInput(readBuffer, 0, readLength);
+
         return (remainingInputLength - readLength);
     }
 

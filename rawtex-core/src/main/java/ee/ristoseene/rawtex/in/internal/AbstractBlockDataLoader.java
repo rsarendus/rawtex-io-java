@@ -33,7 +33,7 @@ public abstract class AbstractBlockDataLoader implements RawTexDataLoader {
         return targetRemainingLength / blockSize;
     }
 
-    protected IllegalStateException invalidTargetBufferLengthException(int length) {
+    protected static IllegalStateException invalidTargetBufferLengthException(int length) {
         return new IllegalStateException("Invalid target buffer length: " + length);
     }
 

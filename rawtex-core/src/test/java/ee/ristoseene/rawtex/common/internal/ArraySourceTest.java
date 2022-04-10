@@ -129,6 +129,11 @@ public class ArraySourceTest {
         Assertions.assertEquals(1, arraySource.read(buffer, 1, 2));
         Assertions.assertArrayEquals(new byte[] {0, 5, 0}, buffer);
 
+        buffer = new byte[1];
+        Assertions.assertEquals(0, arraySource.available());
+        Assertions.assertEquals(-1, arraySource.read(buffer));
+        Assertions.assertArrayEquals(new byte[] {0}, buffer);
+
         Assertions.assertEquals(0, arraySource.available());
     }
 
@@ -144,6 +149,9 @@ public class ArraySourceTest {
 
         Assertions.assertEquals(1, arraySource.available());
         Assertions.assertEquals(1L, arraySource.skip(2L));
+
+        Assertions.assertEquals(0, arraySource.available());
+        Assertions.assertEquals(0L, arraySource.skip(1L));
 
         Assertions.assertEquals(0, arraySource.available());
     }

@@ -3,6 +3,9 @@ package ee.ristoseene.rawtex.common.internal;
 import java.io.EOFException;
 import java.io.InputStream;
 
+/**
+ * A thin non-thread-safe implementation of {@link InputStream} wrapping a byte array.
+ */
 public class ArraySource extends InputStream {
 
     public final byte[] array;
@@ -64,21 +67,23 @@ public class ArraySource extends InputStream {
             throw new ArrayIndexOutOfBoundsException();
         } else if (len == 0) {
             return 0;
+        } else if (available > 0) {
+            final int amount = Math.min(len, available);
+
+            System.arraycopy(array, position, b, off, amount);
+
+            position += amount;
+            available -= amount;
+
+            return amount;
+        } else {
+            return -1;
         }
-
-        final int amount = Math.min(len, available);
-
-        System.arraycopy(array, position, b, off, amount);
-
-        position += amount;
-        available -= amount;
-
-        return amount;
     }
 
     @Override
     public long skip(long n) {
-        if (n > 0 && available > 0) {
+        if (n > 0L && available > 0) {
             final int amount = (int) Math.min(n, available);
 
             position += amount;
@@ -86,7 +91,7 @@ public class ArraySource extends InputStream {
 
             return amount;
         } else {
-            return 0;
+            return 0L;
         }
     }
 
