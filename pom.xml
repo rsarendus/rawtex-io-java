@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>ee.ristoseene.rawtex</groupId>
-    <artifactId>rawtex-io</artifactId>
+    <artifactId>rawtex-io-parent</artifactId>
     <version>0.0.0-SNAPSHOT</version>
 
     <packaging>pom</packaging>
@@ -18,8 +18,8 @@
     </properties>
 
     <modules>
-        <module>rawtex-core</module>
-        <module>rawtex-deflate</module>
+        <module>rawtex-io-core</module>
+        <module>rawtex-io-deflate</module>
     </modules>
 
     <build>
