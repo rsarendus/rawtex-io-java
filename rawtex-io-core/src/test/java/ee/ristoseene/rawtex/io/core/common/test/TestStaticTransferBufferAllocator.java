@@ -15,7 +15,7 @@ public class TestStaticTransferBufferAllocator extends TestTransferBufferAllocat
     }
 
     @Override
-    protected byte[] allocateInternal(int minRequired, int maxRequired) {
+    protected byte[] allocateInternal(int minimumLength, int maximumLength) {
         boolean tooSmall = false;
 
         for (byte[] staticBuffer : staticBuffers) {
@@ -23,7 +23,7 @@ public class TestStaticTransferBufferAllocator extends TestTransferBufferAllocat
                 continue;
             }
 
-            if (staticBuffer.length < minRequired) {
+            if (staticBuffer.length < minimumLength) {
                 tooSmall = true;
                 continue;
             }

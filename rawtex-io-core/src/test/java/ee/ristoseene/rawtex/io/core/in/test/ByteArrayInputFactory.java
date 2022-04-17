@@ -1,6 +1,6 @@
 package ee.ristoseene.rawtex.io.core.in.test;
 
-import ee.ristoseene.rawtex.io.core.common.internal.ArraySource;
+import ee.ristoseene.rawtex.io.core.in.internal.ArraySource;
 
 import java.io.InputStream;
 

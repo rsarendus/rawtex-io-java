@@ -1,6 +1,7 @@
 package ee.ristoseene.rawtex.io.core.common.internal;
 
 import ee.ristoseene.rawtex.io.core.common.exceptions.RawTexUnsupportedFormatException;
+import ee.ristoseene.rawtex.io.core.common.format.Endianness;
 
 import java.io.IOException;
 import java.io.InputStream;

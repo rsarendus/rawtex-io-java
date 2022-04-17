@@ -1,10 +1,11 @@
 package ee.ristoseene.rawtex.io.core.in.data;
 
 import ee.ristoseene.rawtex.io.core.common.data.TransferBufferAllocator;
-import ee.ristoseene.rawtex.io.core.common.internal.ArraySource;
-import ee.ristoseene.rawtex.io.core.common.internal.Endianness;
+import ee.ristoseene.rawtex.io.core.common.format.BlockSize;
+import ee.ristoseene.rawtex.io.core.common.format.Endianness;
 import ee.ristoseene.rawtex.io.core.in.RawTexDataLoader;
 import ee.ristoseene.rawtex.io.core.in.RawTexLoadTarget;
+import ee.ristoseene.rawtex.io.core.in.internal.ArraySource;
 import ee.ristoseene.rawtex.io.core.in.test.DirectBufferFactory;
 import ee.ristoseene.rawtex.io.core.in.test.NonDirectBufferFactory;
 import ee.ristoseene.rawtex.io.core.in.test.TargetBufferFactory;
@@ -26,45 +27,45 @@ import java.nio.ByteOrder;
 import java.util.stream.Stream;
 
 @ExtendWith(MockitoExtension.class)
-public class RawBlockDataLoaderFailureTest {
+class RawBlockDataLoaderFailureTest {
 
     @Mock
     private TransferBufferAllocator transferBufferAllocator;
     @Mock
     private RawTexLoadTarget loadTarget;
 
-    @MethodSource("blockSizeAndEndiannessCombinations")
-    @ParameterizedTest(name = "block size: {0}, endianness: {1}")
-    public void testLoadFailsOnInputLengthAndDataLengthMismatch(int blockSize, ByteOrder endianness) {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness), transferBufferAllocator);
+    @MethodSource("endiannessAndBlockSizeCombinations")
+    @ParameterizedTest(name = "endianness: {0}, block size: {1}")
+    void testLoadFailsOnInputLengthAndDataLengthMismatch(Endianness endianness, BlockSize blockSize) {
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(endianness, blockSize, transferBufferAllocator);
         InputStream in = Mockito.mock(InputStream.class);
-        int invalidInputLength = blockSize + 1;
+        int invalidInputLength = blockSize.octets + 1;
 
         IllegalArgumentException caughtException = Assertions.assertThrows(
                 IllegalArgumentException.class,
-                () -> dataLoader.load(in, invalidInputLength, loadTarget, blockSize)
+                () -> dataLoader.load(in, invalidInputLength, loadTarget, blockSize.octets)
         );
 
         Assertions.assertEquals(
-                String.format("Input length (%d) does not match data length (%d)", invalidInputLength, blockSize),
+                String.format("Input length (%d) does not match data length (%d)", invalidInputLength, blockSize.octets),
                 caughtException.getMessage()
         );
         Mockito.verifyNoInteractions(transferBufferAllocator, in, loadTarget);
     }
 
-    private static Stream<Arguments> blockSizeAndEndiannessCombinations() {
-        return Stream.of(Byte.BYTES, Short.BYTES, Integer.BYTES, Long.BYTES)
-                .flatMap(blockSize -> Stream.of(ByteOrder.BIG_ENDIAN, ByteOrder.LITTLE_ENDIAN)
-                        .map(endianness -> Arguments.of(blockSize, endianness))
+    static Stream<Arguments> endiannessAndBlockSizeCombinations() {
+        return Stream.of(Endianness.values())
+                .flatMap(endianness -> Stream.of(BlockSize.values())
+                        .map(blockSize -> Arguments.of(endianness, blockSize))
                 );
     }
 
-    @MethodSource("nonByteBlockSizeAndEndiannessCombinations")
-    @ParameterizedTest(name = "block size: {0}, endianness: {1}")
-    public void testLoadFailsOnDataLengthNotMultipleOfBlockSize(int blockSize, ByteOrder endianness) {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness), transferBufferAllocator);
+    @MethodSource("endiannessAndNonByteBlockSizeCombinations")
+    @ParameterizedTest(name = "endianness: {0}, block size: {1}")
+    void testLoadFailsOnDataLengthNotMultipleOfBlockSize(Endianness endianness, BlockSize blockSize) {
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(endianness, blockSize, transferBufferAllocator);
         InputStream in = Mockito.mock(InputStream.class);
-        int invalidDataLength = blockSize + 1;
+        int invalidDataLength = blockSize.octets + 1;
 
         IllegalArgumentException caughtException = Assertions.assertThrows(
                 IllegalArgumentException.class,
@@ -72,245 +73,251 @@ public class RawBlockDataLoaderFailureTest {
         );
 
         Assertions.assertEquals(
-                String.format("Data length (%d) is not a multiple of block size (%d)", invalidDataLength, blockSize),
+                String.format("Data length (%d) is not a valid multiple of block size (%d)", invalidDataLength, blockSize.octets),
                 caughtException.getMessage()
         );
         Mockito.verifyNoInteractions(transferBufferAllocator, in, loadTarget);
     }
 
-    private static Stream<Arguments> nonByteBlockSizeAndEndiannessCombinations() {
-        return Stream.of(Short.BYTES, Integer.BYTES, Long.BYTES)
-                .flatMap(blockSize -> Stream.of(ByteOrder.BIG_ENDIAN, ByteOrder.LITTLE_ENDIAN)
-                        .map(endianness -> Arguments.of(blockSize, endianness))
+    static Stream<Arguments> endiannessAndNonByteBlockSizeCombinations() {
+        return Stream.of(Endianness.values())
+                .flatMap(endianness -> Stream.of(BlockSize.values())
+                        .filter(blockSize -> blockSize.octets != Byte.BYTES)
+                        .map(blockSize -> Arguments.of(endianness, blockSize))
                 );
     }
 
-    @MethodSource("blockSizeAndEndiannessAndInputTypeCombinations")
-    @ParameterizedTest(name = "block size: {0}, endianness: {1}, input type: {2}")
-    public void testLoadFailsOnMissingTargetBuffer(int blockSize, ByteOrder endianness, Class<? extends InputStream> inputType) throws IOException {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness), transferBufferAllocator);
+    @MethodSource("endiannessAndBlockSizeAndInputTypeCombinations")
+    @ParameterizedTest(name = "endianness: {0}, block size: {1}, input type: {2}")
+    void testLoadFailsOnMissingTargetBuffer(Endianness endianness, BlockSize blockSize, Class<? extends InputStream> inputType) throws IOException {
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(endianness, blockSize, transferBufferAllocator);
         InputStream in = Mockito.mock(inputType);
 
         Mockito.doReturn(null).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
 
         NullPointerException caughtException = Assertions.assertThrows(
                 NullPointerException.class,
-                () -> dataLoader.load(in, blockSize, loadTarget, blockSize)
+                () -> dataLoader.load(in, blockSize.octets, loadTarget, blockSize.octets)
         );
 
-        Assertions.assertEquals("Target buffer missing", caughtException.getMessage());
+        Assertions.assertEquals("Target buffer is missing", caughtException.getMessage());
         if (in instanceof ArraySource) {
-            Mockito.verify((ArraySource) in).ensureAvailableAndAdvance(blockSize);
+            Mockito.verify((ArraySource) in).ensureAvailableAndAdvance(blockSize.octets);
         }
-        Mockito.verify(loadTarget).acquire(0, blockSize);
-        Mockito.verify(loadTarget).release(null, false);
+        Mockito.verify(loadTarget).acquire(0, blockSize.octets);
         Mockito.verifyNoMoreInteractions(transferBufferAllocator, in, loadTarget);
     }
 
-    @MethodSource("blockSizeAndEndiannessAndInputTypeCombinations")
-    @ParameterizedTest(name = "block size: {0}, endianness: {1}, input type: {2}")
-    public void testLoadFailsOnReadOnlyTargetBuffer(int blockSize, ByteOrder endianness, Class<? extends InputStream> inputType) throws IOException {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness), transferBufferAllocator);
+    @MethodSource("endiannessAndBlockSizeAndInputTypeCombinations")
+    @ParameterizedTest(name = "endianness: {0}, block size: {1}, input type: {2}")
+    void testLoadFailsOnReadOnlyTargetBuffer(Endianness endianness, BlockSize blockSize, Class<? extends InputStream> inputType) throws IOException {
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(endianness, blockSize, transferBufferAllocator);
         InputStream in = Mockito.mock(inputType);
 
-        ByteBuffer readOnlyTarget = ByteBuffer.allocate(blockSize).order(endianness).asReadOnlyBuffer();
+        ByteBuffer readOnlyTarget = ByteBuffer.allocate(blockSize.octets).order(endianness.byteOrder).asReadOnlyBuffer();
         Mockito.doReturn(readOnlyTarget).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
 
         IllegalStateException caughtException = Assertions.assertThrows(
                 IllegalStateException.class,
-                () -> dataLoader.load(in, blockSize, loadTarget, blockSize)
+                () -> dataLoader.load(in, blockSize.octets, loadTarget, blockSize.octets)
         );
 
         Assertions.assertEquals("Target buffer is read-only", caughtException.getMessage());
         if (in instanceof ArraySource) {
-            Mockito.verify((ArraySource) in).ensureAvailableAndAdvance(blockSize);
+            Mockito.verify((ArraySource) in).ensureAvailableAndAdvance(blockSize.octets);
         }
-        Mockito.verify(loadTarget).acquire(0, blockSize);
+        Mockito.verify(loadTarget).acquire(0, blockSize.octets);
         Mockito.verify(loadTarget).release(readOnlyTarget, false);
         Mockito.verifyNoMoreInteractions(transferBufferAllocator, in, loadTarget);
     }
 
-    @MethodSource("blockSizeAndEndiannessAndInputTypeCombinations")
-    @ParameterizedTest(name = "block size: {0}, endianness: {1}, input type: {2}")
-    public void testLoadFailsOnInvalidTargetBufferLength(int blockSize, ByteOrder endianness, Class<? extends InputStream> inputType) throws IOException {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness), transferBufferAllocator);
+    @MethodSource("endiannessAndBlockSizeAndInputTypeCombinations")
+    @ParameterizedTest(name = "endianness: {0}, block size: {1}, input type: {2}")
+    void testLoadFailsOnInvalidTargetBufferLength(Endianness endianness, BlockSize blockSize, Class<? extends InputStream> inputType) throws IOException {
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(endianness, blockSize, transferBufferAllocator);
         InputStream in = Mockito.mock(inputType);
 
-        int invalidTargetLength = blockSize - 1;
-        ByteBuffer targetBuffer = ByteBuffer.allocate(invalidTargetLength).order(endianness);
+        int invalidTargetLength = blockSize.octets - 1;
+        ByteBuffer targetBuffer = ByteBuffer.allocate(invalidTargetLength).order(endianness.byteOrder);
         Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
 
         IllegalStateException caughtException = Assertions.assertThrows(
                 IllegalStateException.class,
-                () -> dataLoader.load(in, blockSize, loadTarget, blockSize)
+                () -> dataLoader.load(in, blockSize.octets, loadTarget, blockSize.octets)
         );
 
         Assertions.assertEquals("Invalid target buffer length: " + invalidTargetLength, caughtException.getMessage());
         if (in instanceof ArraySource) {
-            Mockito.verify((ArraySource) in).ensureAvailableAndAdvance(blockSize);
+            Mockito.verify((ArraySource) in).ensureAvailableAndAdvance(blockSize.octets);
         }
-        Mockito.verify(loadTarget).acquire(0, blockSize);
+        Mockito.verify(loadTarget).acquire(0, blockSize.octets);
         Mockito.verify(loadTarget).release(targetBuffer, false);
         Mockito.verifyNoMoreInteractions(transferBufferAllocator, in, loadTarget);
     }
 
-    @MethodSource("blockSizeAndEndiannessAndInputTypeCombinations")
-    @ParameterizedTest(name = "block size: {0}, endianness: {1}, input type: {2}")
-    public void testLoadFailsOnTooLongTargetBufferLength(int blockSize, ByteOrder endianness, Class<? extends InputStream> inputType) throws IOException {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(endianness), transferBufferAllocator);
+    @MethodSource("endiannessAndBlockSizeAndInputTypeCombinations")
+    @ParameterizedTest(name = "endianness: {0}, block size: {1}, input type: {2}")
+    void testLoadFailsOnTooLongTargetBufferLength(Endianness endianness, BlockSize blockSize, Class<? extends InputStream> inputType) throws IOException {
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(endianness, blockSize, transferBufferAllocator);
         InputStream in = Mockito.mock(inputType);
 
-        int tooLongTargetLength = blockSize * 2;
-        ByteBuffer targetBuffer = ByteBuffer.allocate(tooLongTargetLength).order(endianness);
+        int tooLongTargetLength = blockSize.octets * 2;
+        ByteBuffer targetBuffer = ByteBuffer.allocate(tooLongTargetLength).order(endianness.byteOrder);
         Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
 
         IllegalStateException caughtException = Assertions.assertThrows(
                 IllegalStateException.class,
-                () -> dataLoader.load(in, blockSize, loadTarget, blockSize)
+                () -> dataLoader.load(in, blockSize.octets, loadTarget, blockSize.octets)
         );
 
         Assertions.assertEquals("Invalid target buffer length: " + tooLongTargetLength, caughtException.getMessage());
         if (in instanceof ArraySource) {
-            Mockito.verify((ArraySource) in).ensureAvailableAndAdvance(blockSize);
+            Mockito.verify((ArraySource) in).ensureAvailableAndAdvance(blockSize.octets);
         }
-        Mockito.verify(loadTarget).acquire(0, blockSize);
+        Mockito.verify(loadTarget).acquire(0, blockSize.octets);
         Mockito.verify(loadTarget).release(targetBuffer, false);
         Mockito.verifyNoMoreInteractions(transferBufferAllocator, in, loadTarget);
     }
 
-    private static Stream<Arguments> blockSizeAndEndiannessAndInputTypeCombinations() {
-        return Stream.of(Byte.BYTES, Short.BYTES, Integer.BYTES, Long.BYTES)
-                .flatMap(blockSize -> Stream.of(ByteOrder.BIG_ENDIAN, ByteOrder.LITTLE_ENDIAN)
-                        .flatMap(endianness -> Stream.of(ArraySource.class, InputStream.class)
-                                .map(inputType -> Arguments.of(blockSize, endianness, inputType))
+    static Stream<Arguments> endiannessAndBlockSizeAndInputTypeCombinations() {
+        return Stream.of(Endianness.values())
+                .flatMap(endianness -> Stream.of(BlockSize.values())
+                        .flatMap(blockSize -> Stream.of(ArraySource.class, InputStream.class)
+                                .map(inputType -> Arguments.of(endianness, blockSize, inputType))
                         )
                 );
     }
 
-    @MethodSource("blockSizeAndEndiannessCombinations")
-    @ParameterizedTest(name = "block size: {0}, in: [{1}]")
-    public void testLoadFromArrayFailsWithEOF(int blockSize, ByteOrder inEndianness) {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(inEndianness), transferBufferAllocator);
+    @MethodSource("endiannessAndBlockSizeCombinations")
+    @ParameterizedTest(name = "endianness: {0}, block size: {1}")
+    void testLoadFromArrayFailsWithEOF(Endianness endianness, BlockSize blockSize) {
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(endianness, blockSize, transferBufferAllocator);
         RawTexLoadTarget loadTarget = Mockito.mock(RawTexLoadTarget.class);
-        InputStream in = new ArraySource(new byte[blockSize - 1]);
+        InputStream in = new ArraySource(new byte[blockSize.octets - 1]);
 
         EOFException caughtException = Assertions.assertThrows(
                 EOFException.class,
-                () -> dataLoader.load(in, blockSize, loadTarget, blockSize)
+                () -> dataLoader.load(in, blockSize.octets, loadTarget, blockSize.octets)
         );
 
         Assertions.assertEquals("Unexpected end of input", caughtException.getMessage());
         Mockito.verifyNoInteractions(transferBufferAllocator, loadTarget);
     }
 
-    @MethodSource("parameterCombinations")
-    @ParameterizedTest(name = "block size: {0}, in: [{1}], out: [{2}, {3}]")
-    public void testLoadFromStreamFailsWithEOF(int blockSize, ByteOrder inEndianness, ByteOrder outEndianness, TargetBufferFactory outFactory) {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(inEndianness), transferBufferAllocator);
+    @MethodSource("endiannessAndBlockSizeAndByteOrderAndFactoryCombinations")
+    @ParameterizedTest(name = "endianness: {0}, block size: {1}, out: [{2}, {3}]")
+    void testLoadFromStreamFailsWithEOF(Endianness endianness, BlockSize blockSize, ByteOrder outByteOrder, TargetBufferFactory outFactory) {
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(endianness, blockSize, transferBufferAllocator);
         RawTexLoadTarget loadTarget = Mockito.mock(RawTexLoadTarget.class);
-        InputStream in = new ByteArrayInputStream(new byte[blockSize - 1]);
+        InputStream in = new ByteArrayInputStream(new byte[blockSize.octets - 1]);
 
-        ByteBuffer targetBuffer = outFactory.createFor(0, blockSize).order(outEndianness);
+        ByteBuffer targetBuffer = outFactory.createFor(0, blockSize.octets).order(outByteOrder);
         Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
 
         byte[] transferBuffer = null;
-        if (needsTransferBuffer(blockSize, inEndianness, outEndianness, targetBuffer)) {
-            transferBuffer = new byte[blockSize];
+        if (needsTransferBuffer(endianness, blockSize, targetBuffer)) {
+            transferBuffer = new byte[blockSize.octets];
             Mockito.doReturn(transferBuffer).when(transferBufferAllocator).allocate(Mockito.anyInt(), Mockito.anyInt());
         }
 
         EOFException caughtException = Assertions.assertThrows(
                 EOFException.class,
-                () -> dataLoader.load(in, blockSize, loadTarget, blockSize)
+                () -> dataLoader.load(in, blockSize.octets, loadTarget, blockSize.octets)
         );
 
         Assertions.assertEquals("Unexpected end of input", caughtException.getMessage());
-        Mockito.verify(loadTarget).acquire(0, blockSize);
+        Mockito.verify(loadTarget).acquire(0, blockSize.octets);
         Mockito.verify(loadTarget).release(targetBuffer, false);
         if (transferBuffer != null) {
-            Mockito.verify(transferBufferAllocator).allocate(blockSize, blockSize);
+            int minimumTransferBufferLength = getMinimumTransferBufferLength(endianness, blockSize, targetBuffer);
+            Mockito.verify(transferBufferAllocator).allocate(minimumTransferBufferLength, blockSize.octets);
             Mockito.verify(transferBufferAllocator).free(transferBuffer);
         }
         Mockito.verifyNoMoreInteractions(transferBufferAllocator, loadTarget);
     }
 
-    @MethodSource("parameterCombinations")
-    @ParameterizedTest(name = "block size: {0}, in: [{1}], out: [{2}, {3}]")
-    public void testLoadFailsWithNullTransferBuffer(int blockSize, ByteOrder inEndianness, ByteOrder outEndianness, TargetBufferFactory outFactory) throws IOException {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(inEndianness), transferBufferAllocator);
+    @MethodSource("endiannessAndBlockSizeAndByteOrderAndFactoryCombinations")
+    @ParameterizedTest(name = "endianness: {0}, block size: {1}, out: [{2}, {3}]")
+    void testLoadFailsWithNullTransferBuffer(Endianness endianness, BlockSize blockSize, ByteOrder outByteOrder, TargetBufferFactory outFactory) throws IOException {
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(endianness, blockSize, transferBufferAllocator);
         RawTexLoadTarget loadTarget = Mockito.mock(RawTexLoadTarget.class);
-        InputStream in = new ByteArrayInputStream(new byte[blockSize]);
+        InputStream in = new ByteArrayInputStream(new byte[blockSize.octets]);
 
-        ByteBuffer targetBuffer = outFactory.createFor(0, blockSize).order(outEndianness);
+        ByteBuffer targetBuffer = outFactory.createFor(0, blockSize.octets).order(outByteOrder);
         Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
 
-        if (needsTransferBuffer(blockSize, inEndianness, outEndianness, targetBuffer)) {
+        if (needsTransferBuffer(endianness, blockSize, targetBuffer)) {
             Mockito.doReturn(null).when(transferBufferAllocator).allocate(Mockito.anyInt(), Mockito.anyInt());
 
             NullPointerException caughtException = Assertions.assertThrows(
                     NullPointerException.class,
-                    () -> dataLoader.load(in, blockSize, loadTarget, blockSize)
+                    () -> dataLoader.load(in, blockSize.octets, loadTarget, blockSize.octets)
             );
 
-            Assertions.assertEquals("Transfer buffer missing", caughtException.getMessage());
-            Mockito.verify(loadTarget).acquire(0, blockSize);
+            Assertions.assertEquals("Transfer buffer is missing", caughtException.getMessage());
+            Mockito.verify(loadTarget).acquire(0, blockSize.octets);
             Mockito.verify(loadTarget).release(targetBuffer, false);
-            Mockito.verify(transferBufferAllocator).allocate(blockSize, blockSize);
-            Mockito.verify(transferBufferAllocator).free(null);
+            int minimumTransferBufferLength = getMinimumTransferBufferLength(endianness, blockSize, targetBuffer);
+            Mockito.verify(transferBufferAllocator).allocate(minimumTransferBufferLength, blockSize.octets);
         } else {
-            dataLoader.load(in, blockSize, loadTarget, blockSize);
+            dataLoader.load(in, blockSize.octets, loadTarget, blockSize.octets);
 
-            Mockito.verify(loadTarget).acquire(0, blockSize);
+            Mockito.verify(loadTarget).acquire(0, blockSize.octets);
             Mockito.verify(loadTarget).release(targetBuffer, true);
         }
 
         Mockito.verifyNoMoreInteractions(transferBufferAllocator, loadTarget);
     }
 
-    @MethodSource("parameterCombinations")
-    @ParameterizedTest(name = "block size: {0}, in: [{1}], out: [{2}, {3}]")
-    public void testLoadFailsWithTooShortTransferBuffer(int blockSize, ByteOrder inEndianness, ByteOrder outEndianness, TargetBufferFactory outFactory) throws IOException {
-        RawTexDataLoader dataLoader = new RawBlockDataLoader(() -> blockSize, Endianness.of(inEndianness), transferBufferAllocator);
+    @MethodSource("endiannessAndBlockSizeAndByteOrderAndFactoryCombinations")
+    @ParameterizedTest(name = "endianness: {0}, block size: {1}, out: [{2}, {3}]")
+    void testLoadFailsWithTooShortTransferBuffer(Endianness endianness, BlockSize blockSize, ByteOrder outByteOrder, TargetBufferFactory outFactory) throws IOException {
+        RawTexDataLoader dataLoader = new RawBlockDataLoader(endianness, blockSize, transferBufferAllocator);
         RawTexLoadTarget loadTarget = Mockito.mock(RawTexLoadTarget.class);
-        InputStream in = new ByteArrayInputStream(new byte[blockSize]);
+        InputStream in = new ByteArrayInputStream(new byte[blockSize.octets]);
 
-        ByteBuffer targetBuffer = outFactory.createFor(0, blockSize).order(outEndianness);
+        ByteBuffer targetBuffer = outFactory.createFor(0, blockSize.octets).order(outByteOrder);
         Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
 
-        if (needsTransferBuffer(blockSize, inEndianness, outEndianness, targetBuffer)) {
-            byte[] transferBuffer = new byte[blockSize - 1];
+        if (needsTransferBuffer(endianness, blockSize, targetBuffer)) {
+            int minimumTransferBufferLength = getMinimumTransferBufferLength(endianness, blockSize, targetBuffer);
+            byte[] transferBuffer = new byte[minimumTransferBufferLength - 1];
             Mockito.doReturn(transferBuffer).when(transferBufferAllocator).allocate(Mockito.anyInt(), Mockito.anyInt());
 
             IllegalStateException caughtException = Assertions.assertThrows(
                     IllegalStateException.class,
-                    () -> dataLoader.load(in, blockSize, loadTarget, blockSize)
+                    () -> dataLoader.load(in, blockSize.octets, loadTarget, blockSize.octets)
             );
 
-            Assertions.assertEquals("Transfer buffer too short: " + (blockSize - 1), caughtException.getMessage());
-            Mockito.verify(loadTarget).acquire(0, blockSize);
+            Assertions.assertEquals("Transfer buffer too short: " + (minimumTransferBufferLength - 1), caughtException.getMessage());
+            Mockito.verify(loadTarget).acquire(0, blockSize.octets);
             Mockito.verify(loadTarget).release(targetBuffer, false);
-            Mockito.verify(transferBufferAllocator).allocate(blockSize, blockSize);
+            Mockito.verify(transferBufferAllocator).allocate(minimumTransferBufferLength, blockSize.octets);
             Mockito.verify(transferBufferAllocator).free(transferBuffer);
         } else {
-            dataLoader.load(in, blockSize, loadTarget, blockSize);
+            dataLoader.load(in, blockSize.octets, loadTarget, blockSize.octets);
 
-            Mockito.verify(loadTarget).acquire(0, blockSize);
+            Mockito.verify(loadTarget).acquire(0, blockSize.octets);
             Mockito.verify(loadTarget).release(targetBuffer, true);
         }
 
         Mockito.verifyNoMoreInteractions(transferBufferAllocator, loadTarget);
     }
 
-    private static boolean needsTransferBuffer(int blockSize, ByteOrder inEndianness, ByteOrder outEndianness, ByteBuffer targetBuffer) {
-        return (inEndianness != outEndianness && blockSize > 1) || !targetBuffer.hasArray();
+    static boolean needsTransferBuffer(Endianness endianness, BlockSize blockSize, ByteBuffer targetBuffer) {
+        return (blockSize != BlockSize.OCTETS_1 && targetBuffer.order() != endianness.byteOrder) || !targetBuffer.hasArray();
     }
 
-    private static Stream<Arguments> parameterCombinations() {
-        return Stream.of(Byte.BYTES, Short.BYTES, Integer.BYTES, Long.BYTES)
-                .flatMap(blockSize -> Stream.of(ByteOrder.BIG_ENDIAN, ByteOrder.LITTLE_ENDIAN)
-                        .flatMap(inEndianness -> Stream.of(ByteOrder.BIG_ENDIAN, ByteOrder.LITTLE_ENDIAN)
-                                .flatMap(outEndianness -> Stream.of(new DirectBufferFactory(), new NonDirectBufferFactory())
-                                        .map(outFactory -> Arguments.of(blockSize, inEndianness, outEndianness, outFactory))
+    static int getMinimumTransferBufferLength(Endianness endianness, BlockSize blockSize, ByteBuffer targetBuffer) {
+        return (blockSize != BlockSize.OCTETS_1 && targetBuffer.order() != endianness.byteOrder) ? blockSize.octets : 1;
+    }
+
+    static Stream<Arguments> endiannessAndBlockSizeAndByteOrderAndFactoryCombinations() {
+        return Stream.of(Endianness.values())
+                .flatMap(endianness -> Stream.of(BlockSize.values())
+                        .flatMap(blockSize -> Stream.of(ByteOrder.BIG_ENDIAN, ByteOrder.LITTLE_ENDIAN)
+                                .flatMap(outByteOrder -> Stream.of(new DirectBufferFactory(), new NonDirectBufferFactory())
+                                        .map(outFactory -> Arguments.of(endianness, blockSize, outByteOrder, outFactory))
                                 )
                         )
                 );

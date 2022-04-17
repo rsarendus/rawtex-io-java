@@ -9,7 +9,7 @@ import java.io.InputStream;
  * @see RawTexLoadTarget
  */
 @FunctionalInterface
-public interface RawTexDataLoader extends AutoCloseable {
+public interface RawTexDataLoader {
 
     /**
      * Performs a load operation from the specified input stream into the specified destination.
@@ -24,15 +24,5 @@ public interface RawTexDataLoader extends AutoCloseable {
      * @see RawTexLoadTarget
      */
     void load(InputStream in, int inputLength, RawTexLoadTarget loadTarget, int dataLength) throws IOException;
-
-    /**
-     * Closes this data loader and releases any system resources associated with the loader.
-     * <p>
-     * The default implementation of this method is a NO-OP.
-     *
-     * @throws IOException if an error occurs on closing this resource
-     */
-    @Override
-    default void close() throws IOException {}
 
 }

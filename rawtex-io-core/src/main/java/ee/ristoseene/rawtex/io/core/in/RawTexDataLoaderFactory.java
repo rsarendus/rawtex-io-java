@@ -1,7 +1,7 @@
 package ee.ristoseene.rawtex.io.core.in;
 
 import ee.ristoseene.rawtex.io.core.common.RawTexFormat;
-import ee.ristoseene.rawtex.io.core.common.internal.Endianness;
+import ee.ristoseene.rawtex.io.core.common.format.Endianness;
 
 /**
  * A factory for creating instances of {@link RawTexDataLoader}.

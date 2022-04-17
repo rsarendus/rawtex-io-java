@@ -1,4 +1,4 @@
-package ee.ristoseene.rawtex.io.core.common.internal;
+package ee.ristoseene.rawtex.io.core.in.internal;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -8,11 +8,11 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.io.EOFException;
 import java.io.IOException;
 
-public class ArraySourceTest {
+class ArraySourceTest {
 
     @ParameterizedTest
     @ValueSource(ints = {0, 1, 10})
-    public void testArrayConstructor(int arrayLength) throws EOFException {
+    void testArrayConstructor(int arrayLength) throws EOFException {
         byte[] array = new byte[arrayLength];
 
         ArraySource arraySource = new ArraySource(array);
@@ -24,7 +24,7 @@ public class ArraySourceTest {
 
     @ParameterizedTest
     @ValueSource(ints = {0, 1, 10})
-    public void testArrayAndOffsetAndLengthConstructor(int arrayLength) throws EOFException {
+    void testArrayAndOffsetAndLengthConstructor(int arrayLength) throws EOFException {
         byte[] array = new byte[3 + arrayLength + 7];
 
         ArraySource arraySource = new ArraySource(array, 2, arrayLength);
@@ -35,7 +35,7 @@ public class ArraySourceTest {
     }
 
     @Test
-    public void testNegativeConstructorOffsetFails() {
+    void testNegativeConstructorOffsetFails() {
         Assertions.assertThrows(
                 IndexOutOfBoundsException.class,
                 () -> new ArraySource(new byte[1], -1, 1)
@@ -43,7 +43,7 @@ public class ArraySourceTest {
     }
 
     @Test
-    public void testOverflowingConstructorOffsetFails() {
+    void testOverflowingConstructorOffsetFails() {
         Assertions.assertThrows(
                 IndexOutOfBoundsException.class,
                 () -> new ArraySource(new byte[1], 1, 1)
@@ -51,7 +51,7 @@ public class ArraySourceTest {
     }
 
     @Test
-    public void testNegativeConstructorLengthFails() {
+    void testNegativeConstructorLengthFails() {
         Assertions.assertThrows(
                 IndexOutOfBoundsException.class,
                 () -> new ArraySource(new byte[1], 0, -1)
@@ -59,7 +59,7 @@ public class ArraySourceTest {
     }
 
     @Test
-    public void testOverflowingConstructorLengthFails() {
+    void testOverflowingConstructorLengthFails() {
         Assertions.assertThrows(
                 IndexOutOfBoundsException.class,
                 () -> new ArraySource(new byte[2], 1, 2)
@@ -67,7 +67,7 @@ public class ArraySourceTest {
     }
 
     @Test
-    public void testEnsureAvailableAndAdvance() throws EOFException {
+    void testEnsureAvailableAndAdvance() throws EOFException {
         ArraySource arraySource = new ArraySource(new byte[5]);
 
         Assertions.assertEquals(5, arraySource.available());
@@ -89,7 +89,7 @@ public class ArraySourceTest {
     }
 
     @Test
-    public void testRead() {
+    void testRead() {
         ArraySource arraySource = new ArraySource(new byte[] {2, 127, 1, (byte) 0xff});
 
         Assertions.assertEquals(4, arraySource.available());
@@ -110,7 +110,7 @@ public class ArraySourceTest {
     }
 
     @Test
-    public void testReadIntoArray() throws IOException {
+    void testReadIntoArray() throws IOException {
         ArraySource arraySource = new ArraySource(new byte[] {1, 2, 3, 4, 5});
         byte[] buffer;
 
@@ -138,7 +138,7 @@ public class ArraySourceTest {
     }
 
     @Test
-    public void testSkip() {
+    void testSkip() {
         ArraySource arraySource = new ArraySource(new byte[5]);
 
         Assertions.assertEquals(5, arraySource.available());

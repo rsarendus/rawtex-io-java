@@ -1,6 +1,6 @@
 package ee.ristoseene.rawtex.io.core.in;
 
-import ee.ristoseene.rawtex.io.core.common.internal.Endianness;
+import ee.ristoseene.rawtex.io.core.common.format.Endianness;
 
 import java.io.IOException;
 import java.io.InputStream;

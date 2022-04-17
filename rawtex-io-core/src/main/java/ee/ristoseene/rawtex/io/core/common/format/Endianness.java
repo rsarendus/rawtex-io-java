@@ -1,4 +1,6 @@
-package ee.ristoseene.rawtex.io.core.common.internal;
+package ee.ristoseene.rawtex.io.core.common.format;
+
+import ee.ristoseene.rawtex.io.core.common.internal.CommonIO;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,7 +11,7 @@ public enum Endianness {
     BIG_ENDIAN(ByteOrder.BIG_ENDIAN) {
 
         @Override
-        public short read16(InputStream in) throws IOException {
+        public final short read16(InputStream in) throws IOException {
             return (short) (
                     ((CommonIO.readOctet(in) & 0xff) << 8) |
                      (CommonIO.readOctet(in) & 0xff)
@@ -17,7 +19,7 @@ public enum Endianness {
         }
 
         @Override
-        public int read32(InputStream in) throws IOException {
+        public final int read32(InputStream in) throws IOException {
             return
                     ((CommonIO.readOctet(in) & 0xff) << 24) |
                     ((CommonIO.readOctet(in) & 0xff) << 16) |
@@ -27,7 +29,7 @@ public enum Endianness {
         }
 
         @Override
-        public long read64(InputStream in) throws IOException {
+        public final long read64(InputStream in) throws IOException {
             return
                     ((CommonIO.readOctet(in) & 0xffL) << 56) |
                     ((CommonIO.readOctet(in) & 0xffL) << 48) |
@@ -41,7 +43,7 @@ public enum Endianness {
         }
 
         @Override
-        public short read16(byte[] in, int offset) {
+        public final short read16(byte[] in, int offset) {
             return (short) (
                     ((in[  offset] & 0xff) << 8) |
                      (in[++offset] & 0xff)
@@ -49,7 +51,7 @@ public enum Endianness {
         }
 
         @Override
-        public int read32(byte[] in, int offset) {
+        public final int read32(byte[] in, int offset) {
             return
                     ((in[  offset] & 0xff) << 24) |
                     ((in[++offset] & 0xff) << 16) |
@@ -59,7 +61,7 @@ public enum Endianness {
         }
 
         @Override
-        public long read64(byte[] in, int offset) {
+        public final long read64(byte[] in, int offset) {
             return
                     ((in[  offset] & 0xffL) << 56) |
                     ((in[++offset] & 0xffL) << 48) |
@@ -77,7 +79,7 @@ public enum Endianness {
     LITTLE_ENDIAN(ByteOrder.LITTLE_ENDIAN) {
 
         @Override
-        public short read16(InputStream in) throws IOException {
+        public final short read16(InputStream in) throws IOException {
             return (short) (
                      (CommonIO.readOctet(in) & 0xff) |
                     ((CommonIO.readOctet(in) & 0xff) << 8)
@@ -85,7 +87,7 @@ public enum Endianness {
         }
 
         @Override
-        public int read32(InputStream in) throws IOException {
+        public final int read32(InputStream in) throws IOException {
             return
                      (CommonIO.readOctet(in) & 0xff)        |
                     ((CommonIO.readOctet(in) & 0xff) <<  8) |
@@ -95,7 +97,7 @@ public enum Endianness {
         }
 
         @Override
-        public long read64(InputStream in) throws IOException {
+        public final long read64(InputStream in) throws IOException {
             return
                      (CommonIO.readOctet(in) & 0xffL)        |
                     ((CommonIO.readOctet(in) & 0xffL) <<  8) |
@@ -109,7 +111,7 @@ public enum Endianness {
         }
 
         @Override
-        public short read16(byte[] in, int offset) {
+        public final short read16(byte[] in, int offset) {
             return (short) (
                      (in[  offset] & 0xff) |
                     ((in[++offset] & 0xff) << 8)
@@ -117,7 +119,7 @@ public enum Endianness {
         }
 
         @Override
-        public int read32(byte[] in, int offset) {
+        public final int read32(byte[] in, int offset) {
             return
                      (in[  offset] & 0xff)        |
                     ((in[++offset] & 0xff) <<  8) |
@@ -127,7 +129,7 @@ public enum Endianness {
         }
 
         @Override
-        public long read64(byte[] in, int offset) {
+        public final long read64(byte[] in, int offset) {
             return
                      (in[  offset] & 0xffL)        |
                     ((in[++offset] & 0xffL) <<  8) |
@@ -148,7 +150,7 @@ public enum Endianness {
         this.byteOrder = byteOrder;
     }
 
-    public byte read8(InputStream in) throws IOException {
+    public final byte read8(InputStream in) throws IOException {
         return CommonIO.readOctet(in);
     }
 
@@ -156,7 +158,7 @@ public enum Endianness {
     public abstract int read32(InputStream in) throws IOException;
     public abstract long read64(InputStream in) throws IOException;
 
-    public byte read8(byte[] in, int offset) {
+    public final byte read8(byte[] in, int offset) {
         return in[offset];
     }
 

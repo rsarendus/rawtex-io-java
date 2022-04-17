@@ -1,10 +1,10 @@
 package ee.ristoseene.rawtex.io.core.in;
 
 import ee.ristoseene.rawtex.io.core.common.exceptions.RawTexUnsupportedFormatException;
-import ee.ristoseene.rawtex.io.core.common.internal.ArraySource;
+import ee.ristoseene.rawtex.io.core.common.format.Endianness;
 import ee.ristoseene.rawtex.io.core.common.internal.CommonIO;
-import ee.ristoseene.rawtex.io.core.common.internal.Endianness;
 import ee.ristoseene.rawtex.io.core.common.internal.RawTexHeader;
+import ee.ristoseene.rawtex.io.core.in.internal.ArraySource;
 
 import java.io.IOException;
 import java.io.InputStream;

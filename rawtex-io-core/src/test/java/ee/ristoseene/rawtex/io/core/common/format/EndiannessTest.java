@@ -1,4 +1,4 @@
-package ee.ristoseene.rawtex.io.core.common.internal;
+package ee.ristoseene.rawtex.io.core.common.format;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -11,27 +11,23 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteOrder;
 
-public class EndiannessTest {
+class EndiannessTest {
 
     @Test
-    public void testOfBigEndian() {
-        Endianness result = Endianness.of(ByteOrder.BIG_ENDIAN);
-
-        Assertions.assertSame(Endianness.BIG_ENDIAN, result);
-        Assertions.assertSame(ByteOrder.BIG_ENDIAN, result.byteOrder);
+    void testBigEndian() {
+        Assertions.assertSame(ByteOrder.BIG_ENDIAN, Endianness.BIG_ENDIAN.byteOrder);
+        Assertions.assertSame(Endianness.BIG_ENDIAN, Endianness.of(ByteOrder.BIG_ENDIAN));
     }
 
     @Test
-    public void testOfLittleEndian() {
-        Endianness result = Endianness.of(ByteOrder.LITTLE_ENDIAN);
-
-        Assertions.assertSame(Endianness.LITTLE_ENDIAN, result);
-        Assertions.assertSame(ByteOrder.LITTLE_ENDIAN, result.byteOrder);
+    void testLittleEndian() {
+        Assertions.assertSame(ByteOrder.LITTLE_ENDIAN, Endianness.LITTLE_ENDIAN.byteOrder);
+        Assertions.assertSame(Endianness.LITTLE_ENDIAN, Endianness.of(ByteOrder.LITTLE_ENDIAN));
     }
 
     @ParameterizedTest
     @EnumSource(Endianness.class)
-    public void testRead8FromStreamSucceeds(Endianness endianness) throws IOException {
+    void testRead8FromStreamSucceeds(Endianness endianness) throws IOException {
         InputStream inputStream = new ByteArrayInputStream(new byte[] {7});
 
         byte result = endianness.read8(inputStream);
@@ -41,7 +37,7 @@ public class EndiannessTest {
 
     @ParameterizedTest
     @EnumSource(Endianness.class)
-    public void testRead8FromStreamFails(Endianness endianness) {
+    void testRead8FromStreamFails(Endianness endianness) {
         InputStream inputStream = new ByteArrayInputStream(new byte[0]);
 
         EOFException caughtException = Assertions.assertThrows(
@@ -53,7 +49,7 @@ public class EndiannessTest {
     }
 
     @Test
-    public void testRead16BigEndianFromStreamSucceeds() throws IOException {
+    void testRead16BigEndianFromStreamSucceeds() throws IOException {
         InputStream inputStream = new ByteArrayInputStream(new byte[] {1, 2});
 
         short result = Endianness.BIG_ENDIAN.read16(inputStream);
@@ -62,7 +58,7 @@ public class EndiannessTest {
     }
 
     @Test
-    public void testRead16LittleEndianFromStreamSucceeds() throws IOException {
+    void testRead16LittleEndianFromStreamSucceeds() throws IOException {
         InputStream inputStream = new ByteArrayInputStream(new byte[] {1, 2});
 
         short result = Endianness.LITTLE_ENDIAN.read16(inputStream);
@@ -72,7 +68,7 @@ public class EndiannessTest {
 
     @ParameterizedTest
     @EnumSource(Endianness.class)
-    public void testRead16FromStreamFails(Endianness endianness) {
+    void testRead16FromStreamFails(Endianness endianness) {
         InputStream inputStream = new ByteArrayInputStream(new byte[] {1});
 
         EOFException caughtException = Assertions.assertThrows(
@@ -84,7 +80,7 @@ public class EndiannessTest {
     }
 
     @Test
-    public void testRead32BigEndianFromStreamSucceeds() throws IOException {
+    void testRead32BigEndianFromStreamSucceeds() throws IOException {
         InputStream inputStream = new ByteArrayInputStream(new byte[] {1, 2, 3, 4});
 
         int result = Endianness.BIG_ENDIAN.read32(inputStream);
@@ -93,7 +89,7 @@ public class EndiannessTest {
     }
 
     @Test
-    public void testRead32LittleEndianFromStreamSucceeds() throws IOException {
+    void testRead32LittleEndianFromStreamSucceeds() throws IOException {
         InputStream inputStream = new ByteArrayInputStream(new byte[] {1, 2, 3, 4});
 
         int result = Endianness.LITTLE_ENDIAN.read32(inputStream);
@@ -103,7 +99,7 @@ public class EndiannessTest {
 
     @ParameterizedTest
     @EnumSource(Endianness.class)
-    public void testRead32FromStreamFails(Endianness endianness) {
+    void testRead32FromStreamFails(Endianness endianness) {
         InputStream inputStream = new ByteArrayInputStream(new byte[] {1, 2, 3});
 
         EOFException caughtException = Assertions.assertThrows(
@@ -115,7 +111,7 @@ public class EndiannessTest {
     }
 
     @Test
-    public void testRead64BigEndianFromStreamSucceeds() throws IOException {
+    void testRead64BigEndianFromStreamSucceeds() throws IOException {
         InputStream inputStream = new ByteArrayInputStream(new byte[] {1, 2, 3, 4, 5, 6, 7, 8});
 
         long result = Endianness.BIG_ENDIAN.read64(inputStream);
@@ -124,7 +120,7 @@ public class EndiannessTest {
     }
 
     @Test
-    public void testRead64LittleEndianFromStreamSucceeds() throws IOException {
+    void testRead64LittleEndianFromStreamSucceeds() throws IOException {
         InputStream inputStream = new ByteArrayInputStream(new byte[] {1, 2, 3, 4, 5, 6, 7, 8});
 
         long result = Endianness.LITTLE_ENDIAN.read64(inputStream);
@@ -134,7 +130,7 @@ public class EndiannessTest {
 
     @ParameterizedTest
     @EnumSource(Endianness.class)
-    public void testRead64FromStreamFails(Endianness endianness) {
+    void testRead64FromStreamFails(Endianness endianness) {
         InputStream inputStream = new ByteArrayInputStream(new byte[] {1, 2, 3, 4, 5, 6, 7});
 
         EOFException caughtException = Assertions.assertThrows(
@@ -147,7 +143,7 @@ public class EndiannessTest {
 
     @ParameterizedTest
     @EnumSource(Endianness.class)
-    public void testRead8FromArraySucceeds(Endianness endianness) {
+    void testRead8FromArraySucceeds(Endianness endianness) {
         byte[] inputArray = {3, 7};
 
         byte result = endianness.read8(inputArray, 1);
@@ -157,17 +153,17 @@ public class EndiannessTest {
 
     @ParameterizedTest
     @EnumSource(Endianness.class)
-    public void testRead8FromArrayFails(Endianness endianness) {
+    void testRead8FromArrayFails(Endianness endianness) {
         byte[] inputArray = {3};
 
-        ArrayIndexOutOfBoundsException caughtException = Assertions.assertThrows(
+        Assertions.assertThrows(
                 ArrayIndexOutOfBoundsException.class,
                 () -> endianness.read8(inputArray, 1)
         );
     }
 
     @Test
-    public void testRead16BigEndianFromArraySucceeds() throws IOException {
+    void testRead16BigEndianFromArraySucceeds() {
         byte[] inputArray = {0, 1, 2};
 
         short result = Endianness.BIG_ENDIAN.read16(inputArray, 1);
@@ -176,7 +172,7 @@ public class EndiannessTest {
     }
 
     @Test
-    public void testRead16LittleEndianFromArraySucceeds() throws IOException {
+    void testRead16LittleEndianFromArraySucceeds() {
         byte[] inputArray = {0, 1, 2};
 
         short result = Endianness.LITTLE_ENDIAN.read16(inputArray, 1);
@@ -186,17 +182,17 @@ public class EndiannessTest {
 
     @ParameterizedTest
     @EnumSource(Endianness.class)
-    public void testRead16FromArrayFails(Endianness endianness) {
+    void testRead16FromArrayFails(Endianness endianness) {
         byte[] inputArray = {0, 1};
 
-        ArrayIndexOutOfBoundsException caughtException = Assertions.assertThrows(
+        Assertions.assertThrows(
                 ArrayIndexOutOfBoundsException.class,
                 () -> endianness.read16(inputArray, 1)
         );
     }
 
     @Test
-    public void testRead32BigEndianFromArraySucceeds() throws IOException {
+    void testRead32BigEndianFromArraySucceeds() {
         byte[] inputArray = {0, 1, 2, 3, 4};
 
         int result = Endianness.BIG_ENDIAN.read32(inputArray, 1);
@@ -205,7 +201,7 @@ public class EndiannessTest {
     }
 
     @Test
-    public void testRead32LittleEndianFromArraySucceeds() throws IOException {
+    void testRead32LittleEndianFromArraySucceeds() {
         byte[] inputArray = {0, 1, 2, 3, 4};
 
         int result = Endianness.LITTLE_ENDIAN.read32(inputArray, 1);
@@ -215,17 +211,17 @@ public class EndiannessTest {
 
     @ParameterizedTest
     @EnumSource(Endianness.class)
-    public void testRead32FromArrayFails(Endianness endianness) {
+    void testRead32FromArrayFails(Endianness endianness) {
         byte[] inputArray = {0, 1, 2, 3};
 
-        ArrayIndexOutOfBoundsException caughtException = Assertions.assertThrows(
+        Assertions.assertThrows(
                 ArrayIndexOutOfBoundsException.class,
                 () -> endianness.read32(inputArray, 1)
         );
     }
 
     @Test
-    public void testRead64BigEndianFromArraySucceeds() throws IOException {
+    void testRead64BigEndianFromArraySucceeds() {
         byte[] inputArray = {0, 1, 2, 3, 4, 5, 6, 7, 8};
 
         long result = Endianness.BIG_ENDIAN.read64(inputArray, 1);
@@ -234,7 +230,7 @@ public class EndiannessTest {
     }
 
     @Test
-    public void testRead64LittleEndianFromArraySucceeds() throws IOException {
+    void testRead64LittleEndianFromArraySucceeds() {
         byte[] inputArray = {0, 1, 2, 3, 4, 5, 6, 7, 8};
 
         long result = Endianness.LITTLE_ENDIAN.read64(inputArray, 1);
@@ -244,10 +240,10 @@ public class EndiannessTest {
 
     @ParameterizedTest
     @EnumSource(Endianness.class)
-    public void testRead64FromArrayFails(Endianness endianness) {
+    void testRead64FromArrayFails(Endianness endianness) {
         byte[] inputArray = {0, 1, 2, 3, 4, 5, 6, 7};
 
-        ArrayIndexOutOfBoundsException caughtException = Assertions.assertThrows(
+        Assertions.assertThrows(
                 ArrayIndexOutOfBoundsException.class,
                 () -> endianness.read64(inputArray, 1)
         );

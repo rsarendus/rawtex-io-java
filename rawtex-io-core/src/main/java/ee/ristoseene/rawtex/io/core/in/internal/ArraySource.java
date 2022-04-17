@@ -1,4 +1,6 @@
-package ee.ristoseene.rawtex.io.core.common.internal;
+package ee.ristoseene.rawtex.io.core.in.internal;
+
+import ee.ristoseene.rawtex.io.core.common.internal.CommonIO;
 
 import java.io.EOFException;
 import java.io.InputStream;

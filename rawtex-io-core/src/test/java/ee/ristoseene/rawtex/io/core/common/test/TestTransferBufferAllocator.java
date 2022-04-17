@@ -10,12 +10,12 @@ public abstract class TestTransferBufferAllocator implements TransferBufferAlloc
 
     protected final Set<byte[]> buffersInUse = new HashSet<>();
 
-    protected abstract byte[] allocateInternal(int minRequired, int maxRequired);
+    protected abstract byte[] allocateInternal(int minimumLength, int maximumLength);
     protected void freeInternal(byte[] handle) {}
 
     @Override
-    public byte[] allocate(int minRequired, int maxRequired) {
-        byte[] buffer = allocateInternal(minRequired, maxRequired);
+    public byte[] allocate(int minimumLength, int maximumLength) {
+        byte[] buffer = allocateInternal(minimumLength, maximumLength);
 
         if (!buffersInUse.add(buffer)) {
             Assertions.fail("Buffer is already in use!");

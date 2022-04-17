@@ -1,22 +1,22 @@
 package ee.ristoseene.rawtex.io.core.common.data;
 
 /**
- * An interface representing the provider of temporary transfer buffers.
+ * An interface representing an allocator for temporary transfer buffers.
  */
 @FunctionalInterface
 public interface TransferBufferAllocator {
 
     /**
-     * Returns a byte array of at least {@code minRequired} bytes long, meant for temporary usage.
+     * Returns a byte array of at least {@code minimumLength} bytes long, meant for temporary usage.
      * The content of the returned array is <b>not</b> guaranteed to be zero initialized.
      *
-     * @param minRequired minimum length of the requested byte array
-     * @param maxRequired maximum usable length by the caller (returning a longer byte array has no positive
-     *                    effect on the caller)
+     * @param minimumLength minimum length of the requested byte array
+     * @param maximumLength maximum usable range in the requested byte array
+     *                      (an implementation is allowed to return a longer array)
      *
-     * @return a byte array of at least {@code minRequired} bytes long
+     * @return a byte array of at least {@code minimumLength} bytes long
      */
-    byte[] allocate(int minRequired, int maxRequired);
+    byte[] allocate(int minimumLength, int maximumLength);
 
     /**
      * Notifies that the specified byte array will not be used any more by the caller and the implementation may now

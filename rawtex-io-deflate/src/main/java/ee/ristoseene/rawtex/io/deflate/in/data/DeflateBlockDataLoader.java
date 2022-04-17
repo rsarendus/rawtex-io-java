@@ -1,13 +1,14 @@
 package ee.ristoseene.rawtex.io.deflate.in.data;
 
-import ee.ristoseene.rawtex.io.core.common.RawTexFormat;
 import ee.ristoseene.rawtex.io.core.common.data.TransferBufferAllocator;
 import ee.ristoseene.rawtex.io.core.common.exceptions.RawTexInvalidInputException;
-import ee.ristoseene.rawtex.io.core.common.internal.ArraySource;
+import ee.ristoseene.rawtex.io.core.common.format.BlockSize;
+import ee.ristoseene.rawtex.io.core.common.format.Endianness;
 import ee.ristoseene.rawtex.io.core.common.internal.CommonIO;
-import ee.ristoseene.rawtex.io.core.common.internal.Endianness;
+import ee.ristoseene.rawtex.io.core.in.RawTexDataLoader;
 import ee.ristoseene.rawtex.io.core.in.RawTexLoadTarget;
-import ee.ristoseene.rawtex.io.core.in.internal.AbstractBlockDataLoader;
+import ee.ristoseene.rawtex.io.core.in.internal.AbstractTransferBufferingBlockDataLoader;
+import ee.ristoseene.rawtex.io.core.in.internal.ArraySource;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,11 +18,10 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
 /**
- * An implementation of {@link ee.ristoseene.rawtex.io.core.in.RawTexDataLoader} for loading compressed data stored in
- * DEFLATE format from input stream into any kind of {@link ByteBuffer}s, providing automatic endianness conversion as
- * necessary.
- * The loader counts loadable data in blocks, thus the loader can only load and transfer into the destination buffer
- * chunks of data with lengths equal to multiples of block size ({@link RawTexFormat#getOctetsPerBlock()}).
+ * An implementation of {@link RawTexDataLoader} for loading compressed data stored in DEFLATE format from input
+ * streams into any kind of {@link ByteBuffer}s, providing automatic endianness conversion as necessary.
+ * The loader counts loadable data in blocks, thus the loader can only load and transfer data into the destination
+ * buffer in chunks with lengths equal to multiples of specific block size.
  * <p>
  * In case input data is not backed by a byte array, then a temporary byte array needs to be allocated in order to be
  * able to load input from stream into the inflater. In case target buffer is either not an array-backed buffer or
@@ -29,70 +29,45 @@ import java.util.zip.Inflater;
  * inflater output into the destination. Such temporary byte arrays are obtained automatically as needed via
  * {@link TransferBufferAllocator} interface.
  * <ul>
- *     <li>In case allocating a buffer for loading input from stream into the inflater is necessary, instances of this
- *     class are guaranteed to allocate a single read buffer per call to
- *     {@link #load(InputStream, int, RawTexLoadTarget, int)}. The minimum required read buffer size id guaranteed to
- *     not exceed 1.</li>
- *     <li>In case allocating buffers is necessary for transferring inflater output, instances of this class are
- *     guaranteed to allocate a single transfer buffer at a time, provided an instance is not accessed from multiple
- *     threads concurrently nor called recursively - i.e. a call to {@link TransferBufferAllocator#allocate(int, int)}
- *     is always followed by a corresponding call to {@link TransferBufferAllocator#free(byte[])} before another
+ *     <li>In case allocating a buffer for loading input from a stream into the inflater is necessary, a call to
+ *     {@link #load(InputStream, int, RawTexLoadTarget, int)} is guaranteed to allocate a single read buffer for
+ *     that purpose. The minimum required read buffer size is guaranteed to not exceed 1.</li>
+ *     <li>In case allocating buffers is necessary for transferring inflater output, a call to
+ *     {@link #load(InputStream, int, RawTexLoadTarget, int)} is guaranteed to allocate a single transfer buffer
+ *     at a time - i.e. a call to {@link TransferBufferAllocator#allocate(int, int)} is always followed by a
+ *     corresponding call to {@link TransferBufferAllocator#free(byte[])} before another
  *     {@link TransferBufferAllocator#allocate(int, int)} is invoked. The minimum required transfer buffer size is
  *     equal to block size.</li>
  *     <li>In case both read buffer and transfer buffers are necessary, at most two buffers obtained from the same
  *     {@link TransferBufferAllocator} instance could be in flight simultaneously.</li>
  * </ul>
  */
-public class DeflateBlockDataLoader extends AbstractBlockDataLoader {
+public class DeflateBlockDataLoader extends AbstractTransferBufferingBlockDataLoader implements RawTexDataLoader {
 
-    private static final String TRANSFER_BUFFER_ALLOCATOR_NOT_PROVIDED_MESSAGE = "Transfer buffer allocator not provided";
-    private static final String INFLATER_NOT_PROVIDED_MESSAGE = "Inflater not provided";
+    private static final int MINIMUM_INPUT_LENGTH = 1;
+    private static final int MINIMUM_READ_LENGTH_FOR_INFLATION = 1;
+    private static final boolean INFLATER_NO_WRAP = true;
 
-    private final TransferBufferAllocator transferBufferAllocator;
-
-    private final Inflater inflater;
-    private final boolean endOnClose;
+    private final InflaterAllocator inflaterAllocator;
 
     /**
-     * Constructs a {@code DeflateBlockDataLoader} with the specified input data format, input data endianness and
-     * transfer buffer allocator, using an internally allocated instance of an {@link Inflater}.
+     * Constructs a {@code DeflateBlockDataLoader} with the specified input data endianness, block size,
+     * inflater allocator and transfer buffer allocator.
      *
-     * @param format format of the input data (dictating the block size in number of octets)
      * @param endianness endianness of the input data
+     * @param blockSize block size of the input data
+     * @param inflaterAllocator an allocator providing temporary instances of {@link Inflater} for decompressing the
+     *                          input data
      * @param transferBufferAllocator an allocator providing temporary byte arrays for reading input into the inflater
      *                                and/or transferring data from inflater into the destination buffer
      *
-     * @throws NullPointerException if {@code format}, {@code endianness} or {@code transferBufferAllocator} is {@code null}
+     * @throws NullPointerException if {@code endianness}, {@code blockSize}, {@code inflaterAllocator}
+     * or {@code transferBufferAllocator} is {@code null}
      */
-    public DeflateBlockDataLoader(RawTexFormat format, Endianness endianness, TransferBufferAllocator transferBufferAllocator) {
-        super(format, endianness);
+    public DeflateBlockDataLoader(Endianness endianness, BlockSize blockSize, InflaterAllocator inflaterAllocator, TransferBufferAllocator transferBufferAllocator) {
+        super(endianness, blockSize, transferBufferAllocator);
 
-        this.transferBufferAllocator = Objects.requireNonNull(transferBufferAllocator, TRANSFER_BUFFER_ALLOCATOR_NOT_PROVIDED_MESSAGE);
-
-        this.inflater = new Inflater(true);
-        this.endOnClose = true;
-    }
-
-    /**
-     * Constructs a {@code DeflateBlockDataLoader} with the specified input data format, input data endianness, transfer
-     * buffer allocator and inflater.
-     *
-     * @param format format of the input data (dictating the block size in number of octets)
-     * @param endianness endianness of the input data
-     * @param transferBufferAllocator an allocator providing temporary byte arrays for reading input into the inflater
-     *                                and/or transferring data from inflater into the destination buffer
-     * @param inflater an instance of an {@link Inflater} to use
-     * @param endOnClose whether to call {@link Inflater#end()} on invoking {@link #close()} or not
-     *
-     * @throws NullPointerException if {@code format}, {@code endianness}, {@code transferBufferAllocator} or {@code inflater} is {@code null}
-     */
-    public DeflateBlockDataLoader(RawTexFormat format, Endianness endianness, TransferBufferAllocator transferBufferAllocator, Inflater inflater, boolean endOnClose) {
-        super(format, endianness);
-
-        this.transferBufferAllocator = Objects.requireNonNull(transferBufferAllocator, TRANSFER_BUFFER_ALLOCATOR_NOT_PROVIDED_MESSAGE);
-
-        this.inflater = Objects.requireNonNull(inflater, INFLATER_NOT_PROVIDED_MESSAGE);
-        this.endOnClose = endOnClose;
+        this.inflaterAllocator = Objects.requireNonNull(inflaterAllocator, "Inflater allocator not provided");
     }
 
     /**
@@ -105,114 +80,133 @@ public class DeflateBlockDataLoader extends AbstractBlockDataLoader {
      *
      * @throws IOException if an I/O error occurs
      * @throws IllegalArgumentException if data length is not a multiple of block size
-     * @throws IllegalStateException if load target buffer's {@link ByteBuffer#remaining()} is less than block size,
+     * @throws IllegalStateException if destination buffer's {@link ByteBuffer#remaining()} is less than block size,
      * is not a multiple of block size or is greater than the remaining data length
      */
     @Override
     public void load(InputStream in, int inputLength, RawTexLoadTarget loadTarget, int dataLength) throws IOException {
-        if (dataLength % blockSize != 0) {
-            throw new IllegalArgumentException(String.format("Data length (%d) is not a multiple of block size (%d)", dataLength, blockSize));
+        ensureDataLengthIsValidMultipleOfBlockSize(dataLength);
+
+        if (inputLength < MINIMUM_INPUT_LENGTH) {
+            throw new IllegalArgumentException("Invalid input length: " + inputLength);
         }
 
-        if (in instanceof ArraySource) {
-            final ArraySource arraySource = (ArraySource) in;
-            inflater.setInput(arraySource.array, arraySource.ensureAvailableAndAdvance(inputLength), inputLength);
-            loadFromInflater(loadTarget, dataLength);
-        } else {
-            final int minReadBufferLength = Math.min(inputLength, 1);
-            final byte[] readBuffer = transferBufferAllocator.allocate(minReadBufferLength, inputLength);
-            try {
-                validateTransferBufferAndGetLength(readBuffer, minReadBufferLength);
-                inputLength = readIntoInflaterAndReturnRemainingInputLength(in, readBuffer, inputLength);
-                if (inputLength > 0) {
-                    loadFromStream(in, readBuffer, inputLength, loadTarget, dataLength);
-                } else {
-                    loadFromInflater(loadTarget, dataLength);
-                }
-            } finally {
-                transferBufferAllocator.free(readBuffer);
-            }
+        final Inflater inflater = inflaterAllocator.allocate(INFLATER_NO_WRAP);
+
+        if (inflater == null) {
+            throw new NullPointerException("Inflater is missing");
         }
-    }
-
-    /**
-     * Calls {@link Inflater#end()} if this instance either uses in internal inflater or {@code endOnClose} was set to
-     * {@code true} on construction of this instance.
-     */
-    @Override
-    public void close() {
-        if (endOnClose) {
-            inflater.end();
-        }
-    }
-
-    private void loadFromInflater(RawTexLoadTarget loadTarget, int dataLength) throws IOException {
-        int dataOffset = 0;
-
-        while (dataLength > 0) {
-            final ByteBuffer targetBuffer = loadTarget.acquire(dataOffset, dataLength);
-            boolean complete = false;
-            try {
-                final int transferBlockCount = validateTargetBufferAndAcquireBlockCount(targetBuffer);
-                final int transferLength = blockSize * transferBlockCount;
-
-                if (transferLength > dataLength) {
-                    throw invalidTargetBufferLengthException(transferLength);
-                } else if (blockSize > 1 && targetBuffer.order() != endianness.byteOrder) {
-                    inflateFullyViaTransferBuffer(targetBuffer, transferBlockCount);
-                } else if (targetBuffer.hasArray()) {
-                    inflateFullyIntoArrayBackedBuffer(targetBuffer, transferLength);
-                } else {
-                    inflateFullyViaTransferBuffer(targetBuffer, transferBlockCount);
-                }
-
-                dataOffset += transferLength;
-                dataLength -= transferLength;
-                complete = true;
-            } finally {
-                loadTarget.release(targetBuffer, complete);
-            }
-        }
-    }
-
-    private void loadFromStream(InputStream in, byte[] readBuffer, int remainingInput, RawTexLoadTarget loadTarget, int dataLength) throws IOException {
-        int dataOffset = 0;
-
-        while (dataLength > 0) {
-            final ByteBuffer targetBuffer = loadTarget.acquire(dataOffset, dataLength);
-            boolean complete = false;
-            try {
-                final int transferBlockCount = validateTargetBufferAndAcquireBlockCount(targetBuffer);
-                final int transferLength = blockSize * transferBlockCount;
-
-                if (transferLength > dataLength) {
-                    throw invalidTargetBufferLengthException(transferLength);
-                } else if (blockSize > 1 && targetBuffer.order() != endianness.byteOrder) {
-                    remainingInput = inflateViaTransferBufferAndReturnRemainingInputLength(in, readBuffer, remainingInput, targetBuffer, transferBlockCount);
-                } else if (targetBuffer.hasArray()) {
-                    remainingInput = inflateIntoArrayBackedBufferAndReturnRemainingInputLength(in, readBuffer, remainingInput, targetBuffer, transferLength);
-                } else {
-                    remainingInput = inflateViaTransferBufferAndReturnRemainingInputLength(in, readBuffer, remainingInput, targetBuffer, transferBlockCount);
-                }
-
-                dataOffset += transferLength;
-                dataLength -= transferLength;
-                complete = true;
-            } finally {
-                loadTarget.release(targetBuffer, complete);
-            }
-        }
-    }
-
-    private void inflateFullyViaTransferBuffer(ByteBuffer out, int blockCount) throws IOException {
-        byte[] transferBuffer = transferBufferAllocator.allocate(blockSize, blockSize * blockCount);
 
         try {
-            final int transferBufferBlockCount = validateTransferBufferAndGetLength(transferBuffer, blockSize) / blockSize;
+            ensureInflaterState(inflater);
+
+            if (in instanceof ArraySource) {
+                load(inflater, (ArraySource) in, inputLength, loadTarget, dataLength);
+            } else {
+                load(inflater, in, inputLength, loadTarget, dataLength);
+            }
+        } finally {
+            inflaterAllocator.free(inflater);
+        }
+    }
+
+    private void load(Inflater inflater, ArraySource in, int inputLength, RawTexLoadTarget loadTarget, int dataLength) throws IOException {
+        final int inputOffset = in.ensureAvailableAndAdvance(inputLength);
+
+        try {
+            inflater.setInput(in.array, inputOffset, inputLength);
+            loadFromInflater(inflater, dataLength, loadTarget);
+        } finally {
+            inflater.reset();
+        }
+    }
+
+    private void load(Inflater inflater, InputStream in, int inputLength, RawTexLoadTarget loadTarget, int dataLength) throws IOException {
+        final byte[] readBuffer = allocateTransferBuffer(MINIMUM_READ_LENGTH_FOR_INFLATION, inputLength);
+
+        try {
+            final int readLength = Math.min(validateTransferBufferAndReturnLength(readBuffer, MINIMUM_READ_LENGTH_FOR_INFLATION), inputLength);
+
+            CommonIO.readOctets(in, readBuffer, 0, readLength);
+            inputLength -= readLength;
+
+            try {
+                inflater.setInput(readBuffer, 0, readLength);
+
+                if (inputLength > 0) {
+                    loadFromStream(new InflationState(inflater, readBuffer, in, inputLength), dataLength, loadTarget);
+                } else {
+                    loadFromInflater(inflater, dataLength, loadTarget);
+                }
+            } finally {
+                inflater.reset();
+            }
+        } finally {
+            transferBufferAllocator.free(readBuffer);
+        }
+    }
+
+    private void loadFromInflater(Inflater inflater, int remainingLength, RawTexLoadTarget loadTarget) throws IOException {
+        int dataOffset = 0;
+
+        do {
+            final ByteBuffer targetBuffer = loadTarget.acquire(dataOffset, remainingLength);
+            ensureTargetBufferNotNull(targetBuffer);
+
+            boolean complete = false;
+            try {
+                final int transferLength = validateTargetBufferAndReturnLength(targetBuffer, remainingLength);
+
+                if (isDirectTransferPossibleForTargetBuffer(targetBuffer) && targetBuffer.hasArray()) {
+                    inflateFullyIntoArrayBackedBuffer(inflater, targetBuffer, transferLength);
+                } else {
+                    inflateFullyViaTransferBuffer(inflater, targetBuffer, blockSize.quotientOf(transferLength));
+                }
+
+                dataOffset += transferLength;
+                remainingLength -= transferLength;
+                complete = true;
+            } finally {
+                loadTarget.release(targetBuffer, complete);
+            }
+        } while (remainingLength > 0);
+    }
+
+    private void loadFromStream(InflationState inflationState, int remainingLength, RawTexLoadTarget loadTarget) throws IOException {
+        int dataOffset = 0;
+
+        do {
+            final ByteBuffer targetBuffer = loadTarget.acquire(dataOffset, remainingLength);
+            ensureTargetBufferNotNull(targetBuffer);
+
+            boolean complete = false;
+            try {
+                final int transferLength = validateTargetBufferAndReturnLength(targetBuffer, remainingLength);
+
+                if (isDirectTransferPossibleForTargetBuffer(targetBuffer) && targetBuffer.hasArray()) {
+                    inflateIntoArrayBackedBuffer(inflationState, targetBuffer, transferLength);
+                } else {
+                    inflateViaTransferBuffer(inflationState, targetBuffer, blockSize.quotientOf(transferLength));
+                }
+
+                dataOffset += transferLength;
+                remainingLength -= transferLength;
+                complete = true;
+            } finally {
+                loadTarget.release(targetBuffer, complete);
+            }
+        } while (remainingLength > 0);
+    }
+
+    private void inflateFullyViaTransferBuffer(Inflater inflater, ByteBuffer out, int blockCount) throws IOException {
+        byte[] transferBuffer = allocateTransferBufferForBlockWiseTransfers(blockCount);
+
+        try {
+            final int transferBufferBlockCount = validateTransferBufferForBlockWiseTransfersAndReturnBlockCount(transferBuffer);
 
             do {
                 final int inflateBlockCount = Math.min(blockCount, transferBufferBlockCount);
-                final int inflateLength = blockSize * inflateBlockCount;
+                final int inflateLength = blockSize.multipleOf(inflateBlockCount);
 
                 if (inflater.inflate(transferBuffer, 0, inflateLength) != inflateLength) {
                     throw CommonIO.unexpectedEndOfInputException();
@@ -229,7 +223,7 @@ public class DeflateBlockDataLoader extends AbstractBlockDataLoader {
         }
     }
 
-    private void inflateFullyIntoArrayBackedBuffer(ByteBuffer out, int length) throws IOException {
+    private static void inflateFullyIntoArrayBackedBuffer(Inflater inflater, ByteBuffer out, int length) throws IOException {
         final int position = out.position();
 
         try {
@@ -243,22 +237,16 @@ public class DeflateBlockDataLoader extends AbstractBlockDataLoader {
         out.position(position + length);
     }
 
-    private int inflateViaTransferBufferAndReturnRemainingInputLength(
-            InputStream in, byte[] readBuffer, int remainingInputLength, ByteBuffer out, int blockCount
-    ) throws IOException {
-        final byte[] transferBuffer = transferBufferAllocator.allocate(blockSize, blockSize * blockCount);
+    private void inflateViaTransferBuffer(InflationState inflationState, ByteBuffer out, int blockCount) throws IOException {
+        final byte[] transferBuffer = allocateTransferBufferForBlockWiseTransfers(blockCount);
 
         try {
-            final int transferBufferBlockCount = validateTransferBufferAndGetLength(transferBuffer, blockSize) / blockSize;
+            final int transferBufferBlockCount = validateTransferBufferForBlockWiseTransfersAndReturnBlockCount(transferBuffer);
 
             do {
                 final int inflateBlockCount = Math.min(blockCount, transferBufferBlockCount);
 
-                remainingInputLength = inflateAndReturnRemainingInputLength(
-                        in, readBuffer, remainingInputLength,
-                        transferBuffer, 0, blockSize * inflateBlockCount
-                );
-
+                inflateIntoArray(inflationState, transferBuffer, 0, blockSize.multipleOf(inflateBlockCount));
                 transferBlockWise(transferBuffer, 0, inflateBlockCount, out);
 
                 blockCount -= inflateBlockCount;
@@ -266,78 +254,76 @@ public class DeflateBlockDataLoader extends AbstractBlockDataLoader {
         } finally {
             transferBufferAllocator.free(transferBuffer);
         }
-
-        return remainingInputLength;
     }
 
-    private int inflateIntoArrayBackedBufferAndReturnRemainingInputLength(
-            InputStream in, byte[] readBuffer, int remainingInputLength, ByteBuffer out, int outLength
-    ) throws IOException {
+    private static void inflateIntoArrayBackedBuffer(InflationState inflationState, ByteBuffer out, int length) throws IOException {
         final int position = out.position();
 
-        remainingInputLength = inflateAndReturnRemainingInputLength(
-                in, readBuffer, remainingInputLength,
-                out.array(), out.arrayOffset() + position, outLength
-        );
-
-        out.position(position + outLength);
-
-        return remainingInputLength;
+        inflateIntoArray(inflationState, out.array(), out.arrayOffset() + position, length);
+        out.position(position + length);
     }
 
-    private int inflateAndReturnRemainingInputLength(
-            InputStream in, byte[] readBuffer, int remainingInputLength,
-            byte[] outBuffer, int outOffset, int outLength
-    ) throws IOException {
+    private static void inflateIntoArray(InflationState inflationState, byte[] out, int offset, int length) throws IOException {
         try {
-            int inflatedLength = inflater.inflate(outBuffer, outOffset, outLength);
+            int inflatedLength = inflationState.inflater.inflate(out, offset, length);
 
-            outOffset += inflatedLength;
-            outLength -= inflatedLength;
+            offset += inflatedLength;
+            length -= inflatedLength;
 
-            while (outLength > 0) {
-                if (remainingInputLength <= 0) {
-                    throw CommonIO.unexpectedEndOfInputException();
-                }
+            while (length > 0) {
+                inflationState.readNextBatchIntoInflater();
+                inflatedLength = inflationState.inflater.inflate(out, offset, length);
 
-                remainingInputLength = readIntoInflaterAndReturnRemainingInputLength(in, readBuffer, remainingInputLength);
-                inflatedLength = inflater.inflate(outBuffer, outOffset, outLength);
-
-                outOffset += inflatedLength;
-                outLength -= inflatedLength;
+                offset += inflatedLength;
+                length -= inflatedLength;
             }
         } catch (DataFormatException e) {
             throw compressedDataFormatException(e);
         }
-
-        return remainingInputLength;
-    }
-
-    private int readIntoInflaterAndReturnRemainingInputLength(InputStream in, byte[] readBuffer, int remainingInputLength) throws IOException {
-        final int readLength = Math.min(readBuffer.length, remainingInputLength);
-
-        CommonIO.readOctets(in, readBuffer, 0, readLength);
-        inflater.setInput(readBuffer, 0, readLength);
-
-        return (remainingInputLength - readLength);
-    }
-
-    private static int validateTransferBufferAndGetLength(byte[] transferBuffer, int minimumLength) {
-        if (transferBuffer == null) {
-            throw new NullPointerException("Transfer buffer missing");
-        }
-
-        final int transferBufferLength = transferBuffer.length;
-
-        if (transferBufferLength < minimumLength) {
-            throw new IllegalStateException("Transfer buffer too short: " + transferBufferLength);
-        }
-
-        return transferBufferLength;
     }
 
     private static IOException compressedDataFormatException(DataFormatException e) {
         return new RawTexInvalidInputException("Invalid DEFLATE data stream", e);
+    }
+
+    static final class InflationState {
+
+        public final Inflater inflater;
+
+        private final InputStream in;
+        private final byte[] readBuffer;
+
+        private int remainingInputLength;
+
+        public InflationState(Inflater inflater, byte[] readBuffer, InputStream in, int inputLength) {
+            this.inflater = Objects.requireNonNull(inflater);
+            this.readBuffer = Objects.requireNonNull(readBuffer);
+            this.in = Objects.requireNonNull(in);
+
+            remainingInputLength = inputLength;
+        }
+
+        public void readNextBatchIntoInflater() throws IOException {
+            if (remainingInputLength <= 0) {
+                throw CommonIO.unexpectedEndOfInputException();
+            }
+
+            ensureInflaterState(inflater);
+
+            final int readLength = Math.min(remainingInputLength, readBuffer.length);
+
+            CommonIO.readOctets(in, readBuffer, 0, readLength);
+            inflater.setInput(readBuffer, 0, readLength);
+
+            remainingInputLength -= readLength;
+        }
+
+    }
+
+    static void ensureInflaterState(Inflater inflater) {
+        if (inflater.needsDictionary() || !inflater.needsInput()) {
+            throw new IllegalStateException("Inflater is in an unexpected state");
+        }
     }
 
 }
