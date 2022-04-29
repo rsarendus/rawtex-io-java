@@ -2,6 +2,7 @@ package ee.ristoseene.rawtex.io.core.in;
 
 import ee.ristoseene.rawtex.io.core.common.exceptions.RawTexUnsupportedFormatException;
 import ee.ristoseene.rawtex.io.core.common.format.Endianness;
+import ee.ristoseene.rawtex.io.core.common.format.RawTexFormatIndicator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -14,42 +15,29 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Objects;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public class RawTexLoaderTest {
+class RawTexLoaderTest {
 
     @Test
-    public void testConstructorFailsForMissingDataLoaderFactory() {
+    void testConstructorFailsForMissingFormatLoaderFactory() {
         NullPointerException caughtException = Assertions.assertThrows(
                 NullPointerException.class,
-                () -> new RawTexLoader(null)
+                () -> new RawTexLoader<>(null)
         );
 
-        Assertions.assertEquals("Data loader factory not provided", caughtException.getMessage());
+        Assertions.assertEquals("Format loader factory not provided", caughtException.getMessage());
     }
 
-    @Test
-    public void testConstructorFailsForNullVersionLoader() {
-        RawTexDataLoaderFactory dataLoaderFactory = Mockito.mock(RawTexDataLoaderFactory.class);
-
-        NullPointerException caughtException = Assertions.assertThrows(
-                NullPointerException.class,
-                () -> new RawTexLoader(dataLoaderFactory, (RawTexVersionLoader) null)
-        );
-
-        Assertions.assertEquals("Version loader cannot be null", caughtException.getMessage());
-    }
-
-    @ParameterizedTest(name = "{1}")
+    @ParameterizedTest
     @MethodSource("namedLoadTesters")
-    public void testLoadFailsOnEmptyInput(LoadCall loadTester, String name) {
-        RawTexDataLoaderFactory dataLoaderFactory = Mockito.mock(RawTexDataLoaderFactory.class);
-        RawTexVersionLoader versionLoader = Mockito.mock(RawTexVersionLoader.class);
+    void testLoadFailsOnEmptyInput(LoadCall loadTester) {
+        RawTexFormatLoaderFactory<DummyFormat> versionLoaderFactory = mockFormatLoaderFactory();
 
-        RawTexLoader loader = new RawTexLoader(dataLoaderFactory, versionLoader);
-        RawTexLoadTargetFactory loadTargetFactory = Mockito.mock(RawTexLoadTargetFactory.class);
+        RawTexLoader<DummyFormat> loader = new RawTexLoader<>(versionLoaderFactory);
+        RawTexLoadTargetFactory<DummyFormat> loadTargetFactory = mockLoadTargetFactory();
         byte[] input = {};
 
         EOFException caughtException = Assertions.assertThrows(
@@ -58,18 +46,33 @@ public class RawTexLoaderTest {
         );
 
         Assertions.assertEquals("Unexpected end of input", caughtException.getMessage());
-        Mockito.verifyNoInteractions(dataLoaderFactory, versionLoader, loadTargetFactory);
+        Mockito.verifyNoInteractions(versionLoaderFactory, loadTargetFactory);
     }
 
-    @ParameterizedTest(name = "{1}")
-    @MethodSource("namedLoadTesters")
-    public void testLoadFailsOnInvalidInput(LoadCall loadTester, String name) {
-        RawTexDataLoaderFactory dataLoaderFactory = Mockito.mock(RawTexDataLoaderFactory.class);
-        RawTexVersionLoader versionLoader = Mockito.mock(RawTexVersionLoader.class);
+    static Stream<LoadCall> namedLoadTesters() {
+        return Stream.of(
+                new NamedLoadTester("load(byte[], ...)", RawTexLoader::load),
+                new NamedLoadTester("load(byte[], int, int, ...)", (loader, input, loadTargetFactory) -> {
+                    byte[] extendedInput = new byte[7 + input.length + 3];
+                    System.arraycopy(input, 0, extendedInput, 7, input.length);
+                    loader.load(extendedInput, 7, input.length, loadTargetFactory);
+                }),
+                new NamedLoadTester("load(InputStream, ...)", (loader, input, loadTargetFactory) -> {
+                    try (InputStream in = new ByteArrayInputStream(input)) {
+                        loader.load(in, loadTargetFactory);
+                    }
+                })
+        );
+    }
 
-        RawTexLoader loader = new RawTexLoader(dataLoaderFactory, versionLoader);
-        RawTexLoadTargetFactory loadTargetFactory = Mockito.mock(RawTexLoadTargetFactory.class);
-        byte[] input = {'i', 'n', 'v', 'a', 'l', 'i', 'd'};
+    @ParameterizedTest(name = "\"{0}\" {1}")
+    @MethodSource("namedLoadTestersWithInvalidFormatIndicators")
+    void testLoadFailsOnInvalidFormatIndicator(String formatIndicator, LoadCall loadTester) {
+        RawTexFormatLoaderFactory<DummyFormat> versionLoaderFactory = mockFormatLoaderFactory();
+
+        RawTexLoader<DummyFormat> loader = new RawTexLoader<>(versionLoaderFactory);
+        RawTexLoadTargetFactory<DummyFormat> loadTargetFactory = mockLoadTargetFactory();
+        byte[] input = formatIndicator.getBytes(StandardCharsets.UTF_8);
 
         RawTexUnsupportedFormatException caughtException = Assertions.assertThrows(
                 RawTexUnsupportedFormatException.class,
@@ -77,33 +80,23 @@ public class RawTexLoaderTest {
         );
 
         Assertions.assertEquals("Unrecognized format indicator", caughtException.getMessage());
-        Mockito.verifyNoInteractions(dataLoaderFactory, versionLoader, loadTargetFactory);
+        Mockito.verifyNoInteractions(versionLoaderFactory, loadTargetFactory);
     }
 
-    private static Stream<Arguments> namedLoadTesters() {
-        return Stream.of(
-                Arguments.of((LoadCall) RawTexLoader::load, "load(byte[], ...)"),
-                Arguments.of((LoadCall) (loader, input, loadTargetFactory) -> {
-                        byte[] extendedInput = new byte[7 + input.length + 3];
-                        System.arraycopy(input, 0, extendedInput, 7, input.length);
-                        loader.load(extendedInput, 7, input.length, loadTargetFactory);
-                }, "load(byte[], int, int, ...)"),
-                Arguments.of((LoadCall) (loader, input, loadTargetFactory) -> {
-                    try (InputStream in = new ByteArrayInputStream(input)) {
-                        loader.load(in, loadTargetFactory);
-                    }
-                }, "load(InputStream, ...)")
-        );
+    static Stream<Arguments> namedLoadTestersWithInvalidFormatIndicators() {
+        return Stream.of("RaWtEx", "rAwTeX", "RawTex", "Raw Tex", "raw tex", "RAW\0", "tex", "abc", "\0")
+                .flatMap(formatIndicator -> namedLoadTesters()
+                        .map(loadCall -> Arguments.of(formatIndicator, loadCall))
+                );
     }
 
-    @ParameterizedTest(name = "{0} {2}")
-    @MethodSource("namedLoadTestersWithFormatIndicators")
-    public void testLoadFailsOnIncompleteFormatIndicator(String formatIndicator, LoadCall loadTester, String name) {
-        RawTexDataLoaderFactory dataLoaderFactory = Mockito.mock(RawTexDataLoaderFactory.class);
-        RawTexVersionLoader versionLoader = Mockito.mock(RawTexVersionLoader.class);
+    @ParameterizedTest(name = "\"{0}\" {1}")
+    @MethodSource("namedLoadTestersWithIncompleteFormatIndicators")
+    void testLoadFailsOnIncompleteFormatIndicator(String formatIndicator, LoadCall loadTester) {
+        RawTexFormatLoaderFactory<DummyFormat> versionLoaderFactory = mockFormatLoaderFactory();
 
-        RawTexLoader loader = new RawTexLoader(dataLoaderFactory, versionLoader);
-        RawTexLoadTargetFactory loadTargetFactory = Mockito.mock(RawTexLoadTargetFactory.class);
+        RawTexLoader<DummyFormat> loader = new RawTexLoader<>(versionLoaderFactory);
+        RawTexLoadTargetFactory<DummyFormat> loadTargetFactory = mockLoadTargetFactory();
         byte[] input = formatIndicator.substring(0, formatIndicator.length() - 1).getBytes(StandardCharsets.US_ASCII);
 
         EOFException caughtException = Assertions.assertThrows(
@@ -112,17 +105,26 @@ public class RawTexLoaderTest {
         );
 
         Assertions.assertEquals("Unexpected end of input", caughtException.getMessage());
-        Mockito.verifyNoInteractions(dataLoaderFactory, versionLoader, loadTargetFactory);
+        Mockito.verifyNoInteractions(versionLoaderFactory, loadTargetFactory);
     }
 
-    @ParameterizedTest(name = "{0} {2}")
-    @MethodSource("namedLoadTestersWithFormatIndicators")
-    public void testLoadFailsOnIncompleteVersion(String formatIndicator, LoadCall loadTester, String name) {
-        RawTexDataLoaderFactory dataLoaderFactory = Mockito.mock(RawTexDataLoaderFactory.class);
-        RawTexVersionLoader versionLoader = Mockito.mock(RawTexVersionLoader.class);
+    static Stream<Arguments> namedLoadTestersWithIncompleteFormatIndicators() {
+        return Stream.of(RawTexFormatIndicator.values())
+                .flatMap(formatIndicator -> IntStream.range(1, formatIndicator.length())
+                        .mapToObj(endIndex -> formatIndicator.toString().substring(0, endIndex))
+                        .flatMap(formatIndicatorString -> namedLoadTesters()
+                                .map(loadCall -> Arguments.of(formatIndicatorString, loadCall))
+                        )
+                );
+    }
 
-        RawTexLoader loader = new RawTexLoader(dataLoaderFactory, versionLoader);
-        RawTexLoadTargetFactory loadTargetFactory = Mockito.mock(RawTexLoadTargetFactory.class);
+    @ParameterizedTest(name = "\"{0}\" {1}")
+    @MethodSource("namedLoadTestersWithFormatIndicators")
+    void testLoadFailsOnIncompleteVersion(String formatIndicator, LoadCall loadTester) {
+        RawTexFormatLoaderFactory<DummyFormat> versionLoaderFactory = mockFormatLoaderFactory();
+
+        RawTexLoader<DummyFormat> loader = new RawTexLoader<>(versionLoaderFactory);
+        RawTexLoadTargetFactory<DummyFormat> loadTargetFactory = mockLoadTargetFactory();
         byte[] input = (formatIndicator + '\0').getBytes(StandardCharsets.US_ASCII);
 
         EOFException caughtException = Assertions.assertThrows(
@@ -131,18 +133,19 @@ public class RawTexLoaderTest {
         );
 
         Assertions.assertEquals("Unexpected end of input", caughtException.getMessage());
-        Mockito.verifyNoInteractions(dataLoaderFactory, versionLoader, loadTargetFactory);
+        Mockito.verifyNoInteractions(versionLoaderFactory, loadTargetFactory);
     }
 
-    @ParameterizedTest(name = "{0} {2}")
+    @ParameterizedTest(name = "\"{0}\" {1}")
     @MethodSource("namedLoadTestersWithFormatIndicators")
-    public void testLoadFailsWhenVersionNotSupported(String formatIndicator, LoadCall loadTester, String name) {
-        RawTexDataLoaderFactory dataLoaderFactory = Mockito.mock(RawTexDataLoaderFactory.class);
-        RawTexVersionLoader versionLoader = Mockito.mock(RawTexVersionLoader.class);
-        Mockito.doReturn(false).when(versionLoader).supportsVersion(Mockito.anyInt(), Mockito.anyInt());
+    void testLoadFailsWhenVersionLoaderFactoryThrowsException(String formatIndicator, LoadCall loadTester) throws IOException {
+        RawTexFormatLoaderFactory<DummyFormat> versionLoaderFactory = mockFormatLoaderFactory();
+        RawTexUnsupportedFormatException exceptionToThrow = new RawTexUnsupportedFormatException("A message");
+        Mockito.doThrow(exceptionToThrow).when(versionLoaderFactory).create(Mockito.any(Endianness.class), Mockito.anyInt(), Mockito.anyInt());
+        Endianness expectedEndianness = RawTexFormatIndicator.of(formatIndicator).endianness;
 
-        RawTexLoader loader = new RawTexLoader(dataLoaderFactory, versionLoader);
-        RawTexLoadTargetFactory loadTargetFactory = Mockito.mock(RawTexLoadTargetFactory.class);
+        RawTexLoader<DummyFormat> loader = new RawTexLoader<>(versionLoaderFactory);
+        RawTexLoadTargetFactory<DummyFormat> loadTargetFactory = mockLoadTargetFactory();
         byte[] input = (formatIndicator + '\u0003' + '\u0007').getBytes(StandardCharsets.US_ASCII);
 
         RawTexUnsupportedFormatException caughtException = Assertions.assertThrows(
@@ -150,48 +153,131 @@ public class RawTexLoaderTest {
                 () -> loadTester.callLoad(loader, input, loadTargetFactory)
         );
 
-        Assertions.assertEquals("Unsupported version: 3.7", caughtException.getMessage());
-        Mockito.verify(versionLoader, Mockito.times(1)).supportsVersion(3, 7);
-        Mockito.verifyNoMoreInteractions(versionLoader);
-        Mockito.verifyNoInteractions(dataLoaderFactory, loadTargetFactory);
+        Assertions.assertSame(exceptionToThrow, caughtException);
+        Mockito.verify(versionLoaderFactory, Mockito.times(1)).create(expectedEndianness, 3, 7);
+        Mockito.verifyNoMoreInteractions(versionLoaderFactory);
+        Mockito.verifyNoInteractions(loadTargetFactory);
     }
 
-    @ParameterizedTest(name = "{0} {2}")
+    @ParameterizedTest(name = "\"{0}\" {1}")
     @MethodSource("namedLoadTestersWithFormatIndicators")
-    public void testLoadSucceeds(String formatIndicator, LoadCall loadTester, String name) throws IOException {
-        RawTexDataLoaderFactory dataLoaderFactory = Mockito.mock(RawTexDataLoaderFactory.class);
-        RawTexVersionLoader versionLoader1 = Mockito.mock(RawTexVersionLoader.class);
-        Mockito.doReturn(false).when(versionLoader1).supportsVersion(Mockito.anyInt(), Mockito.anyInt());
-        RawTexVersionLoader versionLoader2 = Mockito.mock(RawTexVersionLoader.class);
-        Mockito.doReturn(true).when(versionLoader2).supportsVersion(Mockito.anyInt(), Mockito.anyInt());
-        RawTexVersionLoader versionLoader3 = Mockito.mock(RawTexVersionLoader.class);
-        Endianness expectedEndianness = "RAWTEX".equals(formatIndicator) ? Endianness.BIG_ENDIAN : Endianness.LITTLE_ENDIAN;
+    void testLoadFailsWhenVersionLoaderFactoryReturnsNull(String formatIndicator, LoadCall loadTester) throws IOException {
+        RawTexFormatLoaderFactory<DummyFormat> versionLoaderFactory = mockFormatLoaderFactory();
+        Mockito.doReturn(null).when(versionLoaderFactory).create(Mockito.any(Endianness.class), Mockito.anyInt(), Mockito.anyInt());
+        Endianness expectedEndianness = RawTexFormatIndicator.of(formatIndicator).endianness;
 
-        RawTexLoader loader = new RawTexLoader(dataLoaderFactory, versionLoader1, versionLoader2, versionLoader3);
-        RawTexLoadTargetFactory loadTargetFactory = Mockito.mock(RawTexLoadTargetFactory.class);
+        RawTexLoader<DummyFormat> loader = new RawTexLoader<>(versionLoaderFactory);
+        RawTexLoadTargetFactory<DummyFormat> loadTargetFactory = mockLoadTargetFactory();
+        byte[] input = (formatIndicator + '\u0003' + '\u0007').getBytes(StandardCharsets.US_ASCII);
+
+        RawTexUnsupportedFormatException caughtException = Assertions.assertThrows(
+                RawTexUnsupportedFormatException.class,
+                () -> loadTester.callLoad(loader, input, loadTargetFactory)
+        );
+
+        Assertions.assertEquals(
+                String.format("Unsupported format: \"%s\" (%s), version 3.7", formatIndicator, expectedEndianness),
+                caughtException.getMessage()
+        );
+        Mockito.verify(versionLoaderFactory, Mockito.times(1)).create(expectedEndianness, 3, 7);
+        Mockito.verifyNoMoreInteractions(versionLoaderFactory);
+        Mockito.verifyNoInteractions(loadTargetFactory);
+    }
+
+    @ParameterizedTest(name = "\"{0}\" {1}")
+    @MethodSource("namedLoadTestersWithFormatIndicators")
+    void testLoadFailsWhenVersionLoaderThrowsException(String formatIndicator, LoadCall loadTester) throws IOException {
+        RawTexFormatLoaderFactory<DummyFormat> versionLoaderFactory = mockFormatLoaderFactory();
+        RawTexFormatLoader<DummyFormat> versionLoader = mockFormatLoader();
+        Mockito.doReturn(versionLoader).when(versionLoaderFactory).create(Mockito.any(Endianness.class), Mockito.anyInt(), Mockito.anyInt());
+        IOException exceptionToThrow = new IOException("A message");
+        Mockito.doThrow(exceptionToThrow).when(versionLoader).load(Mockito.any(InputStream.class), Mockito.any());
+        Endianness expectedEndianness = RawTexFormatIndicator.of(formatIndicator).endianness;
+
+        RawTexLoader<DummyFormat> loader = new RawTexLoader<>(versionLoaderFactory);
+        RawTexLoadTargetFactory<DummyFormat> loadTargetFactory = mockLoadTargetFactory();
+        byte[] input = (formatIndicator + '\u0003' + '\u0007').getBytes(StandardCharsets.US_ASCII);
+
+        IOException caughtException = Assertions.assertThrows(
+                IOException.class,
+                () -> loadTester.callLoad(loader, input, loadTargetFactory)
+        );
+
+        Assertions.assertSame(exceptionToThrow, caughtException);
+        Mockito.verify(versionLoaderFactory, Mockito.times(1)).create(expectedEndianness, 3, 7);
+        Mockito.verify(versionLoader, Mockito.times(1)).load(Mockito.any(InputStream.class), Mockito.same(loadTargetFactory));
+        Mockito.verifyNoMoreInteractions(versionLoaderFactory, versionLoader);
+        Mockito.verifyNoInteractions(loadTargetFactory);
+    }
+
+    @ParameterizedTest(name = "\"{0}\" {1}")
+    @MethodSource("namedLoadTestersWithFormatIndicators")
+    void testLoadSucceeds(String formatIndicator, LoadCall loadTester) throws IOException {
+        RawTexFormatLoaderFactory<DummyFormat> versionLoaderFactory = mockFormatLoaderFactory();
+        RawTexFormatLoader<DummyFormat> versionLoader = mockFormatLoader();
+        Mockito.doReturn(versionLoader).when(versionLoaderFactory).create(Mockito.any(Endianness.class), Mockito.anyInt(), Mockito.anyInt());
+        Endianness expectedEndianness = RawTexFormatIndicator.of(formatIndicator).endianness;
+
+        RawTexLoader<DummyFormat> loader = new RawTexLoader<>(versionLoaderFactory);
+        RawTexLoadTargetFactory<DummyFormat> loadTargetFactory = mockLoadTargetFactory();
         byte[] input = (formatIndicator + '\u0003' + '\u0007').getBytes(StandardCharsets.US_ASCII);
 
         loadTester.callLoad(loader, input, loadTargetFactory);
 
-        Mockito.verify(versionLoader1, Mockito.times(1)).supportsVersion(3, 7);
-        Mockito.verify(versionLoader2, Mockito.times(1)).supportsVersion(3, 7);
-        Mockito.verify(versionLoader2, Mockito.times(1))
-                .load(Mockito.any(InputStream.class), Mockito.same(expectedEndianness), Mockito.same(loadTargetFactory), Mockito.same(dataLoaderFactory));
-        Mockito.verifyNoMoreInteractions(versionLoader1, versionLoader2);
-        Mockito.verifyNoInteractions(dataLoaderFactory, versionLoader3, loadTargetFactory);
+        Mockito.verify(versionLoaderFactory, Mockito.times(1)).create(expectedEndianness, 3, 7);
+        Mockito.verify(versionLoader, Mockito.times(1)).load(Mockito.any(InputStream.class), Mockito.same(loadTargetFactory));
+        Mockito.verifyNoMoreInteractions(versionLoaderFactory, versionLoader);
+        Mockito.verifyNoInteractions(loadTargetFactory);
     }
 
-    private static Stream<Arguments> namedLoadTestersWithFormatIndicators() {
-        return Stream.of("RAWTEX", "rawtex")
+    static Stream<Arguments> namedLoadTestersWithFormatIndicators() {
+        return Stream.of(RawTexFormatIndicator.values())
+                .map(RawTexFormatIndicator::toString)
                 .flatMap(formatIndicator -> namedLoadTesters()
-                        .map(arguments -> new ArrayList<>(Arrays.asList(arguments.get())))
-                        .peek(list -> list.add(0, formatIndicator))
-                        .map(list -> Arguments.of(list.toArray()))
+                        .map(loadCall -> Arguments.of(formatIndicator, loadCall))
                 );
     }
 
     interface LoadCall {
-        void callLoad(RawTexLoader loader, byte[] input, RawTexLoadTargetFactory loadTargetFactory) throws IOException;
+        void callLoad(RawTexLoader<DummyFormat> loader, byte[] input, RawTexLoadTargetFactory<DummyFormat> loadTargetFactory) throws IOException;
     }
+
+    static class NamedLoadTester implements LoadCall {
+
+        private final String name;
+        private final LoadCall loadCall;
+
+        public NamedLoadTester(String name, LoadCall loadCall) {
+            this.name = Objects.requireNonNull(name);
+            this.loadCall = Objects.requireNonNull(loadCall);
+        }
+
+        public void callLoad(RawTexLoader<DummyFormat> loader, byte[] input, RawTexLoadTargetFactory<DummyFormat> loadTargetFactory) throws IOException {
+            loadCall.callLoad(loader, input, loadTargetFactory);
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+
+    }
+
+    @SuppressWarnings("unchecked")
+    static RawTexFormatLoaderFactory<DummyFormat> mockFormatLoaderFactory() {
+        return (RawTexFormatLoaderFactory<DummyFormat>) Mockito.mock(RawTexFormatLoaderFactory.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    static RawTexLoadTargetFactory<DummyFormat> mockLoadTargetFactory() {
+        return (RawTexLoadTargetFactory<DummyFormat>) Mockito.mock(RawTexLoadTargetFactory.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    static RawTexFormatLoader<DummyFormat> mockFormatLoader() {
+        return (RawTexFormatLoader<DummyFormat>) Mockito.mock(RawTexFormatLoader.class);
+    }
+
+    static class DummyFormat {}
 
 }

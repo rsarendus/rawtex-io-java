@@ -1,32 +1,33 @@
 package ee.ristoseene.rawtex.io.core.in;
 
-import ee.ristoseene.rawtex.io.core.common.RawTexExtents;
-import ee.ristoseene.rawtex.io.core.common.RawTexFormat;
+import ee.ristoseene.rawtex.io.core.common.image.ImageExtents;
 
 import java.nio.ByteOrder;
 
 /**
  * A factory for creating instances of {@link RawTexLoadTarget}.
  *
+ * @param <IF> the type of objects representing specific image formats
+ *
  * @see RawTexLoadTarget
  */
 @FunctionalInterface
-public interface RawTexLoadTargetFactory {
+public interface RawTexLoadTargetFactory<IF> {
 
     /**
-     * Returns a {@link RawTexLoadTarget} that is able to receive RAWTEX image data with the specified format, image
-     * extents, source endianness and total length.
+     * Returns a {@link RawTexLoadTarget} that is able to receive {@code RAWTEX} image data with the specified
+     * format, image extents, source endianness and total length.
      *
-     * @param format format of the image
-     * @param extents extents of the image
-     * @param endianness endianness of the image data to load
-     * @param totalDataLength total length (in number of octets) of the RAWTEX image data to load
+     * @param imageFormat format of the image
+     * @param imageExtents extents of the image
+     * @param byteOrder byte order of the image data to load
+     * @param totalDataLength total length (in number of octets) of the {@code RAWTEX} image data to load
      *
      * @return an instance of {@link RawTexLoadTarget}
      *
-     * @see RawTexFormat
-     * @see RawTexExtents
+     * @see java.nio.ByteBuffer#order()
+     * @see java.nio.ByteBuffer#order(ByteOrder) 
      */
-    RawTexLoadTarget create(RawTexFormat format, RawTexExtents extents, ByteOrder endianness, int totalDataLength);
+    RawTexLoadTarget create(IF imageFormat, ImageExtents imageExtents, ByteOrder byteOrder, int totalDataLength);
 
 }

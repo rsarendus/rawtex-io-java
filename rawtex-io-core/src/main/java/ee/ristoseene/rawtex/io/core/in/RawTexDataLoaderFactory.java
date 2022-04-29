@@ -1,29 +1,30 @@
 package ee.ristoseene.rawtex.io.core.in;
 
-import ee.ristoseene.rawtex.io.core.common.RawTexFormat;
+import ee.ristoseene.rawtex.io.core.common.format.BlockSize;
 import ee.ristoseene.rawtex.io.core.common.format.Endianness;
 
 /**
  * A factory for creating instances of {@link RawTexDataLoader}.
  *
+ * @param <IF> the type of objects representing specific image formats
+ * @param <CF> the type of objects representing image data compression formats
+ *
  * @see RawTexDataLoader
  */
 @FunctionalInterface
-public interface RawTexDataLoaderFactory {
+public interface RawTexDataLoaderFactory<IF, CF> {
 
     /**
-     * Returns a {@link RawTexDataLoader} that is able to load RAWTEX image data with the specified format, source
-     * endianness and compression format.
+     * Returns a data loader that is able to load {@code RAWTEX} image data with the specified
+     * endianness, block size, image format and compression format.
      *
-     * @param format format of the input data
      * @param endianness endianness of the input data
-     * @param compressionFormat input data compression format string (e.g. {@code DEFLATE}),
-     *                          or {@code null} if input data is not compressed
+     * @param blockSize block size of the input data
+     * @param imageFormat custom image format
+     * @param compressionFormat custom compression format
      *
      * @return an instance of {@link RawTexDataLoader}
-     *
-     * @see RawTexFormat
      */
-    RawTexDataLoader create(RawTexFormat format, Endianness endianness, String compressionFormat);
+    RawTexDataLoader create(Endianness endianness, BlockSize blockSize, IF imageFormat, CF compressionFormat);
 
 }

@@ -1,9 +1,8 @@
 package ee.ristoseene.rawtex.io.core.in;
 
 import ee.ristoseene.rawtex.io.core.common.exceptions.RawTexUnsupportedFormatException;
-import ee.ristoseene.rawtex.io.core.common.format.Endianness;
+import ee.ristoseene.rawtex.io.core.common.format.RawTexFormatIndicator;
 import ee.ristoseene.rawtex.io.core.common.internal.CommonIO;
-import ee.ristoseene.rawtex.io.core.common.internal.RawTexHeader;
 import ee.ristoseene.rawtex.io.core.in.internal.ArraySource;
 
 import java.io.IOException;
@@ -11,90 +10,124 @@ import java.io.InputStream;
 import java.util.Objects;
 
 /**
- * A configurable loader for loading RAWTEX images.
+ * The main entry-point of loading {@code RAWTEX} images.
+ * The loader parses the {@code RAWTEX} header (format indicator + major and minor version)
+ * and then delegates the loading process to a specific {@link RawTexFormatLoader} via
+ * {@link RawTexFormatLoaderFactory}.
+ *
+ * @param <IF> the type of objects representing specific image formats
  */
-public class RawTexLoader {
+public class RawTexLoader<IF> {
 
-    private final RawTexDataLoaderFactory dataLoaderFactory;
-    private final RawTexVersionLoader[] versionLoaders;
+    private final RawTexFormatLoaderFactory<IF> formatLoaderFactory;
 
     /**
-     * Constructs a {@code RawTexLoader} with the specified data loader factory and version loaders.
+     * Constructs a {@code RawTexLoader} with the specified format loader factory.
      *
-     * @param dataLoaderFactory a factory providing specific instances of {@link RawTexDataLoader} for loading RAWTEX image data
-     * @param versionLoaders a list of loaders capable of loading specific versions of binary formatted RAWTEX images
+     * @param formatLoaderFactory a factory providing specific instances of {@link RawTexFormatLoader}
+     *                            for loading specific {@code RAWTEX} binary formats
      *
-     * @see RawTexDataLoader
-     * @see RawTexDataLoaderFactory
-     * @see RawTexVersionLoader
+     * @see RawTexFormatLoader
+     * @see RawTexFormatLoaderFactory
      */
-    public RawTexLoader(RawTexDataLoaderFactory dataLoaderFactory, RawTexVersionLoader... versionLoaders) {
-        this.dataLoaderFactory = Objects.requireNonNull(dataLoaderFactory, "Data loader factory not provided");
-        for (RawTexVersionLoader versionLoader : versionLoaders) {
-            Objects.requireNonNull(versionLoader, "Version loader cannot be null");
-        }
-        this.versionLoaders = versionLoaders.clone();
+    public RawTexLoader(RawTexFormatLoaderFactory<IF> formatLoaderFactory) {
+        this.formatLoaderFactory = Objects.requireNonNull(formatLoaderFactory, "Format loader factory not provided");
     }
 
     /**
-     * Loads a RAWTEX image from the specified byte array.
+     * Loads a {@code RAWTEX} image from the specified byte array.
      *
-     * @param in a byte array containing the binary formatted RAWTEX image to load
-     * @param loadTargetFactory a factory capable of providing an appropriate {@link RawTexLoadTarget} for accepting the image data of the RAWTEX image to load
+     * @param in a byte array containing the binary formatted {@code RAWTEX} image to load
+     * @param loadTargetFactory a factory capable of providing an appropriate {@link RawTexLoadTarget}
+     *                          for accepting the image data of the {@code RAWTEX} image to load
      *
      * @throws IOException if an I/O or a parsing error occurs
      *
      * @see RawTexLoadTarget
      * @see RawTexLoadTargetFactory
      */
-    public void load(byte[] in, RawTexLoadTargetFactory loadTargetFactory) throws IOException {
+    public void load(byte[] in, RawTexLoadTargetFactory<IF> loadTargetFactory) throws IOException {
         load(new ArraySource(in), loadTargetFactory);
     }
 
     /**
-     * Loads a RAWTEX image from a portion of the specified byte array.
+     * Loads a {@code RAWTEX} image from a portion of the specified byte array.
      *
-     * @param in a byte array containing the binary formatted RAWTEX image to load
-     * @param offset offset of the input data in the specified byte array
-     * @param length length of the input data in the specified byte array
-     * @param loadTargetFactory a factory capable of providing an appropriate {@link RawTexLoadTarget} for accepting the image data of the RAWTEX image to load
+     * @param in a byte array containing the binary formatted {@code RAWTEX} image to load
+     * @param offset offset of the input data in the specified byte array {@code in}
+     * @param length length of the input data in the specified byte array {@code in}
+     * @param loadTargetFactory a factory capable of providing an appropriate {@link RawTexLoadTarget}
+     *                          for accepting the image data of the {@code RAWTEX} image to load
      *
      * @throws IOException if an I/O or a parsing error occurs
      *
      * @see RawTexLoadTarget
      * @see RawTexLoadTargetFactory
      */
-    public void load(byte[] in, int offset, int length, RawTexLoadTargetFactory loadTargetFactory) throws IOException {
+    public void load(byte[] in, int offset, int length, RawTexLoadTargetFactory<IF> loadTargetFactory) throws IOException {
         load(new ArraySource(in, offset, length), loadTargetFactory);
     }
 
     /**
-     * Loads a RAWTEX image from the specified input stream.
+     * Loads a {@code RAWTEX} image from the specified input stream.
      *
-     * @param in a stream to load the binary formatted RAWTEX image from
-     * @param loadTargetFactory a factory capable of providing an appropriate {@link RawTexLoadTarget} for accepting the image data of the RAWTEX image to load
+     * @param in a stream to load the binary formatted {@code RAWTEX} image from
+     * @param loadTargetFactory a factory capable of providing an appropriate {@link RawTexLoadTarget}
+     *                          for accepting the image data of the {@code RAWTEX} image to load
      *
      * @throws IOException if an I/O or a parsing error occurs
      *
      * @see RawTexLoadTarget
      * @see RawTexLoadTargetFactory
      */
-    public void load(InputStream in, RawTexLoadTargetFactory loadTargetFactory) throws IOException {
-        final Endianness endianness = RawTexHeader.parseEndianness(in);
+    public void load(InputStream in, RawTexLoadTargetFactory<IF> loadTargetFactory) throws IOException {
+        getFormatLoader(in).load(in, loadTargetFactory);
+    }
+
+    private RawTexFormatLoader<IF> getFormatLoader(InputStream in) throws IOException {
+        final RawTexFormatIndicator formatIndicator = parseFormatIndicator(in);
 
         final int majorVersion = CommonIO.readOctet(in) & 0xff;
         final int minorVersion = CommonIO.readOctet(in) & 0xff;
 
-        for (RawTexVersionLoader versionLoader : versionLoaders) {
-            if (versionLoader.supportsVersion(majorVersion, minorVersion)) {
-                versionLoader.load(in, endianness, loadTargetFactory, dataLoaderFactory);
-                return;
-            }
+        final RawTexFormatLoader<IF> versionLoader = formatLoaderFactory
+                .create(formatIndicator.endianness, majorVersion, minorVersion);
+
+        if (versionLoader != null) {
+            return versionLoader;
         }
 
         throw new RawTexUnsupportedFormatException(String.format(
-                "Unsupported version: %d.%d", majorVersion, minorVersion
+                "Unsupported format: \"%s\" (%s), version %d.%d",
+                formatIndicator, formatIndicator.endianness, majorVersion, minorVersion
         ));
+    }
+
+    private static RawTexFormatIndicator parseFormatIndicator(InputStream in) throws IOException {
+        final byte firstOctet = CommonIO.readOctet(in);
+        RawTexFormatIndicator formatIndicator;
+
+        if (RawTexFormatIndicator.LITTLE_ENDIAN.octetAt(0) == firstOctet) {
+            formatIndicator = RawTexFormatIndicator.LITTLE_ENDIAN;
+        } else if (RawTexFormatIndicator.BIG_ENDIAN.octetAt(0) == firstOctet) {
+            formatIndicator = RawTexFormatIndicator.BIG_ENDIAN;
+        } else {
+            throw unrecognizedFormatIndicatorException();
+        }
+
+        final int expectedFormatIndicatorLength = formatIndicator.length();
+
+        for (int i = 1; i < expectedFormatIndicatorLength; ++i) {
+            if (formatIndicator.octetAt(i) != CommonIO.readOctet(in)) {
+                throw unrecognizedFormatIndicatorException();
+            }
+        }
+
+        return formatIndicator;
+    }
+
+    private static RawTexUnsupportedFormatException unrecognizedFormatIndicatorException() {
+        return new RawTexUnsupportedFormatException("Unrecognized format indicator");
     }
 
 }
