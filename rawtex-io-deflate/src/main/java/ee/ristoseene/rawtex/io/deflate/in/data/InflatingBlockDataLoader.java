@@ -19,39 +19,46 @@ import java.util.zip.Inflater;
 
 /**
  * An implementation of {@link RawTexDataLoader} for loading compressed data stored in DEFLATE format from input
- * streams into any kind of {@link ByteBuffer}s, providing automatic endianness conversion as necessary.
- * The loader counts loadable data in blocks, thus the loader can only load and transfer data into the destination
- * buffer in chunks with lengths equal to multiples of specific block size.
+ * streams into {@link ByteBuffer}s, providing automatic endianness conversion as necessary.
+ * The loader counts loadable data in blocks, thus the loader can only load and transfer data into destination
+ * buffers in chunks equal to multiples of specific block size.
  * <p>
- * In case input data is not backed by a byte array, then a temporary byte array needs to be allocated in order to be
- * able to load input from stream into the inflater. In case target buffer is either not an array-backed buffer or
- * endianness conversion is necessary, then temporary byte arrays need to be allocated in order to be able to transfer
- * inflater output into the destination. Such temporary byte arrays are obtained automatically as needed via
- * {@link TransferBufferAllocator} interface.
+ * In case input data is not {@link ArraySource backed by a byte array}, then a temporary byte array needs to be
+ * allocated in order to be able to load input from stream into the inflater. In case target buffer is either not
+ * an array-backed buffer or endianness conversion is necessary, then temporary byte arrays need to be allocated
+ * in order to be able to transfer inflater output into the destination. Such temporary byte arrays are obtained
+ * automatically as needed via the {@link TransferBufferAllocator} interface.
  * <ul>
  *     <li>In case allocating a buffer for loading input from a stream into the inflater is necessary, a call to
- *     {@link #load(InputStream, int, RawTexLoadTarget, int)} is guaranteed to allocate a single read buffer for
- *     that purpose. The minimum required read buffer size is guaranteed to not exceed 1.</li>
+ *     {@link #load(InputStream, int, RawTexLoadTarget, int) load} is guaranteed to allocate a single read buffer
+ *     for that purpose. The minimum required read buffer size is guaranteed to not exceed
+ *     {@value #MINIMUM_READ_LENGTH_FOR_INFLATION}.</li>
  *     <li>In case allocating buffers is necessary for transferring inflater output, a call to
- *     {@link #load(InputStream, int, RawTexLoadTarget, int)} is guaranteed to allocate a single transfer buffer
- *     at a time - i.e. a call to {@link TransferBufferAllocator#allocate(int, int)} is always followed by a
- *     corresponding call to {@link TransferBufferAllocator#free(byte[])} before another
+ *     {@link #load(InputStream, int, RawTexLoadTarget, int) load} is guaranteed to allocate a single transfer
+ *     buffer at a time - i.e. a call to {@link TransferBufferAllocator#allocate(int, int)} is always followed by
+ *     a corresponding call to {@link TransferBufferAllocator#free(byte[])} before another
  *     {@link TransferBufferAllocator#allocate(int, int)} is invoked. The minimum required transfer buffer size is
- *     equal to block size.</li>
+ *     equal to {@link #blockSize block size}.</li>
  *     <li>In case both read buffer and transfer buffers are necessary, at most two buffers obtained from the same
  *     {@link TransferBufferAllocator} instance could be in flight simultaneously.</li>
  * </ul>
+ * <p>
+ * In case any input buffers are bound to the inflater allocated via the {@link InflaterAllocator} interface,
+ * the {@link Inflater#reset() inflater is guaranteed to be reset} before it is returned to its allocator in order
+ * to prevent any leakage from the scope of {@link #load(InputStream, int, RawTexLoadTarget, int) load}.
+ * <p>
+ * Instances of this class hold no direct mutable state, and are thread-safe as long as the
+ * implementations of the assigned {@link InflaterAllocator} and {@link TransferBufferAllocator} are thread-safe.
  */
-public class DeflateBlockDataLoader extends AbstractTransferBufferingBlockDataLoader implements RawTexDataLoader {
+public class InflatingBlockDataLoader extends AbstractTransferBufferingBlockDataLoader implements RawTexDataLoader {
 
     private static final int MINIMUM_INPUT_LENGTH = 1;
     private static final int MINIMUM_READ_LENGTH_FOR_INFLATION = 1;
-    private static final boolean INFLATER_NO_WRAP = true;
 
     private final InflaterAllocator inflaterAllocator;
 
     /**
-     * Constructs a {@code DeflateBlockDataLoader} with the specified input data endianness, block size,
+     * Constructs an {@code InflatingBlockDataLoader} with the specified input data endianness, block size,
      * inflater allocator and transfer buffer allocator.
      *
      * @param endianness endianness of the input data
@@ -64,21 +71,21 @@ public class DeflateBlockDataLoader extends AbstractTransferBufferingBlockDataLo
      * @throws NullPointerException if {@code endianness}, {@code blockSize}, {@code inflaterAllocator}
      * or {@code transferBufferAllocator} is {@code null}
      */
-    public DeflateBlockDataLoader(Endianness endianness, BlockSize blockSize, InflaterAllocator inflaterAllocator, TransferBufferAllocator transferBufferAllocator) {
+    public InflatingBlockDataLoader(Endianness endianness, BlockSize blockSize, InflaterAllocator inflaterAllocator, TransferBufferAllocator transferBufferAllocator) {
         super(endianness, blockSize, transferBufferAllocator);
 
         this.inflaterAllocator = Objects.requireNonNull(inflaterAllocator, "Inflater allocator not provided");
     }
 
     /**
-     * Performs a load operation from the specified input stream into the specified destination.
+     * {@inheritDoc}
      *
-     * @param in the stream to perform the data load from
-     * @param inputLength number of octets to read from the input stream {@code in}
-     * @param loadTarget destination for the load operation
-     * @param dataLength data length in number of octets
+     * @param in {@inheritDoc}
+     * @param inputLength {@inheritDoc}
+     * @param loadTarget {@inheritDoc}
+     * @param dataLength {@inheritDoc}
      *
-     * @throws IOException if an I/O error occurs
+     * @throws IOException {@inheritDoc}
      * @throws IllegalArgumentException if data length is not a multiple of block size
      * @throws IllegalStateException if destination buffer's {@link ByteBuffer#remaining()} is less than block size,
      * is not a multiple of block size or is greater than the remaining data length
@@ -91,14 +98,14 @@ public class DeflateBlockDataLoader extends AbstractTransferBufferingBlockDataLo
             throw new IllegalArgumentException("Invalid input length: " + inputLength);
         }
 
-        final Inflater inflater = inflaterAllocator.allocate(INFLATER_NO_WRAP);
+        final Inflater inflater = inflaterAllocator.allocate();
 
         if (inflater == null) {
             throw new NullPointerException("Inflater is missing");
         }
 
         try {
-            ensureInflaterState(inflater);
+            ensureInflaterStateForInput(inflater);
 
             if (in instanceof ArraySource) {
                 load(inflater, (ArraySource) in, inputLength, loadTarget, dataLength);
@@ -308,7 +315,7 @@ public class DeflateBlockDataLoader extends AbstractTransferBufferingBlockDataLo
                 throw CommonIO.unexpectedEndOfInputException();
             }
 
-            ensureInflaterState(inflater);
+            ensureInflaterStateForInput(inflater);
 
             final int readLength = Math.min(remainingInputLength, readBuffer.length);
 
@@ -320,7 +327,7 @@ public class DeflateBlockDataLoader extends AbstractTransferBufferingBlockDataLo
 
     }
 
-    static void ensureInflaterState(Inflater inflater) {
+    static void ensureInflaterStateForInput(Inflater inflater) {
         if (inflater.needsDictionary() || !inflater.needsInput()) {
             throw new IllegalStateException("Inflater is in an unexpected state");
         }

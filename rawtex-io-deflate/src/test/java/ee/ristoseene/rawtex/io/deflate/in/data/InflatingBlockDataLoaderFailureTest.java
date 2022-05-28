@@ -23,7 +23,7 @@ import java.util.stream.Stream;
 import java.util.zip.Inflater;
 
 @ExtendWith(MockitoExtension.class)
-class DeflateBlockDataLoaderFailureTest {
+class InflatingBlockDataLoaderFailureTest {
 
     @Mock
     private TransferBufferAllocator transferBufferAllocator;
@@ -35,7 +35,7 @@ class DeflateBlockDataLoaderFailureTest {
     @MethodSource("endiannessAndNonByteBlockSizeCombinations")
     @ParameterizedTest(name = "endianness: {0}, block size: {1}")
     void testLoadFailsOnDataLengthNotMultipleOfBlockSize(Endianness endianness, BlockSize blockSize) {
-        RawTexDataLoader dataLoader = new DeflateBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
+        RawTexDataLoader dataLoader = new InflatingBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
         InputStream in = Mockito.mock(InputStream.class);
         int inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
         int invalidDataLength = blockSize.octets + 1;
@@ -63,7 +63,7 @@ class DeflateBlockDataLoaderFailureTest {
     @MethodSource("endiannessAndNonByteBlockSizeCombinations")
     @ParameterizedTest(name = "endianness: {0}, block size: {1}")
     void testLoadFailsOnTooShortInputLength(Endianness endianness, BlockSize blockSize) {
-        RawTexDataLoader dataLoader = new DeflateBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
+        RawTexDataLoader dataLoader = new InflatingBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
         InputStream in = Mockito.mock(InputStream.class);
         int invalidInputLength = 0;
 
@@ -82,11 +82,11 @@ class DeflateBlockDataLoaderFailureTest {
     @MethodSource("endiannessAndBlockSizeAndInputTypeCombinations")
     @ParameterizedTest(name = "endianness: {0}, block size: {1}, input type: {2}")
     void testLoadFailsOnMissingInflater(Endianness endianness, BlockSize blockSize, Class<? extends InputStream> inputType) {
-        RawTexDataLoader dataLoader = new DeflateBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
+        RawTexDataLoader dataLoader = new InflatingBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
         InputStream in = Mockito.mock(inputType);
         int inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
 
-        Mockito.doReturn(null).when(inflaterAllocator).allocate(Mockito.anyBoolean());
+        Mockito.doReturn(null).when(inflaterAllocator).allocate();
 
         NullPointerException caughtException = Assertions.assertThrows(
                 NullPointerException.class,
@@ -94,19 +94,19 @@ class DeflateBlockDataLoaderFailureTest {
         );
 
         Assertions.assertEquals("Inflater is missing", caughtException.getMessage());
-        Mockito.verify(inflaterAllocator).allocate(true);
+        Mockito.verify(inflaterAllocator).allocate();
         Mockito.verifyNoMoreInteractions(inflaterAllocator, transferBufferAllocator, in, loadTarget);
     }
 
     @MethodSource("endiannessAndBlockSizeAndInputTypeCombinations")
     @ParameterizedTest(name = "endianness: {0}, block size: {1}, input type: {2}")
     void testLoadFailsOnInflaterNeedsDictionary(Endianness endianness, BlockSize blockSize, Class<? extends InputStream> inputType) {
-        RawTexDataLoader dataLoader = new DeflateBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
+        RawTexDataLoader dataLoader = new InflatingBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
         InputStream in = Mockito.mock(inputType);
         int inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
         Inflater inflater = Mockito.mock(Inflater.class);
 
-        Mockito.doReturn(inflater).when(inflaterAllocator).allocate(Mockito.anyBoolean());
+        Mockito.doReturn(inflater).when(inflaterAllocator).allocate();
         Mockito.doReturn(true).when(inflater).needsDictionary();
 
         IllegalStateException caughtException = Assertions.assertThrows(
@@ -115,7 +115,7 @@ class DeflateBlockDataLoaderFailureTest {
         );
 
         Assertions.assertEquals("Inflater is in an unexpected state", caughtException.getMessage());
-        Mockito.verify(inflaterAllocator).allocate(true);
+        Mockito.verify(inflaterAllocator).allocate();
         Mockito.verify(inflater).needsDictionary();
         Mockito.verify(inflaterAllocator).free(inflater);
         Mockito.verifyNoMoreInteractions(inflaterAllocator, inflater, transferBufferAllocator, in, loadTarget);
@@ -124,12 +124,12 @@ class DeflateBlockDataLoaderFailureTest {
     @MethodSource("endiannessAndBlockSizeAndInputTypeCombinations")
     @ParameterizedTest(name = "endianness: {0}, block size: {1}, input type: {2}")
     void testLoadFailsOnInflaterDoesNotNeedInput(Endianness endianness, BlockSize blockSize, Class<? extends InputStream> inputType) {
-        RawTexDataLoader dataLoader = new DeflateBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
+        RawTexDataLoader dataLoader = new InflatingBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
         InputStream in = Mockito.mock(inputType);
         int inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
         Inflater inflater = Mockito.mock(Inflater.class);
 
-        Mockito.doReturn(inflater).when(inflaterAllocator).allocate(Mockito.anyBoolean());
+        Mockito.doReturn(inflater).when(inflaterAllocator).allocate();
         Mockito.doReturn(false).when(inflater).needsDictionary();
         Mockito.doReturn(false).when(inflater).needsInput();
 
@@ -139,7 +139,7 @@ class DeflateBlockDataLoaderFailureTest {
         );
 
         Assertions.assertEquals("Inflater is in an unexpected state", caughtException.getMessage());
-        Mockito.verify(inflaterAllocator).allocate(true);
+        Mockito.verify(inflaterAllocator).allocate();
         Mockito.verify(inflater).needsDictionary();
         Mockito.verify(inflater).needsInput();
         Mockito.verify(inflaterAllocator).free(inflater);
@@ -149,13 +149,13 @@ class DeflateBlockDataLoaderFailureTest {
     @MethodSource("endiannessAndBlockSizeAndInputTypeCombinations")
     @ParameterizedTest(name = "endianness: {0}, block size: {1}, input type: {2}")
     void testLoadFailsOnMissingTargetBuffer(Endianness endianness, BlockSize blockSize, Class<? extends InputStream> inputType) throws IOException {
-        RawTexDataLoader dataLoader = new DeflateBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
+        RawTexDataLoader dataLoader = new InflatingBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
         InputStream in = Mockito.mock(inputType);
         int inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
         Inflater inflater = Mockito.mock(Inflater.class);
         byte[] readBuffer = new byte[inputLength];
 
-        Mockito.doReturn(inflater).when(inflaterAllocator).allocate(Mockito.anyBoolean());
+        Mockito.doReturn(inflater).when(inflaterAllocator).allocate();
         Mockito.doReturn(true).when(inflater).needsInput();
         if (!(in instanceof ArraySource)) {
             Mockito.doReturn(readBuffer).when(transferBufferAllocator).allocate(Mockito.anyInt(), Mockito.anyInt());
@@ -169,7 +169,7 @@ class DeflateBlockDataLoaderFailureTest {
         );
 
         Assertions.assertEquals("Target buffer is missing", caughtException.getMessage());
-        Mockito.verify(inflaterAllocator).allocate(true);
+        Mockito.verify(inflaterAllocator).allocate();
         Mockito.verify(inflater).needsDictionary();
         Mockito.verify(inflater).needsInput();
         if (in instanceof ArraySource) {
@@ -190,13 +190,13 @@ class DeflateBlockDataLoaderFailureTest {
     @MethodSource("endiannessAndBlockSizeAndInputTypeCombinations")
     @ParameterizedTest(name = "endianness: {0}, block size: {1}, input type: {2}")
     void testLoadFailsOnReadOnlyTargetBuffer(Endianness endianness, BlockSize blockSize, Class<? extends InputStream> inputType) throws IOException {
-        RawTexDataLoader dataLoader = new DeflateBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
+        RawTexDataLoader dataLoader = new InflatingBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
         InputStream in = Mockito.mock(inputType);
         int inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
         Inflater inflater = Mockito.mock(Inflater.class);
         byte[] readBuffer = new byte[inputLength];
 
-        Mockito.doReturn(inflater).when(inflaterAllocator).allocate(Mockito.anyBoolean());
+        Mockito.doReturn(inflater).when(inflaterAllocator).allocate();
         Mockito.doReturn(true).when(inflater).needsInput();
         if (!(in instanceof ArraySource)) {
             Mockito.doReturn(readBuffer).when(transferBufferAllocator).allocate(Mockito.anyInt(), Mockito.anyInt());
@@ -211,7 +211,7 @@ class DeflateBlockDataLoaderFailureTest {
         );
 
         Assertions.assertEquals("Target buffer is read-only", caughtException.getMessage());
-        Mockito.verify(inflaterAllocator).allocate(true);
+        Mockito.verify(inflaterAllocator).allocate();
         Mockito.verify(inflater).needsDictionary();
         Mockito.verify(inflater).needsInput();
         if (in instanceof ArraySource) {
@@ -233,13 +233,13 @@ class DeflateBlockDataLoaderFailureTest {
     @MethodSource("endiannessAndBlockSizeAndInputTypeCombinations")
     @ParameterizedTest(name = "endianness: {0}, block size: {1}, input type: {2}")
     void testLoadFailsOnInvalidTargetBufferLength(Endianness endianness, BlockSize blockSize, Class<? extends InputStream> inputType) throws IOException {
-        RawTexDataLoader dataLoader = new DeflateBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
+        RawTexDataLoader dataLoader = new InflatingBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
         InputStream in = Mockito.mock(inputType);
         int inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
         Inflater inflater = Mockito.mock(Inflater.class);
         byte[] readBuffer = new byte[inputLength];
 
-        Mockito.doReturn(inflater).when(inflaterAllocator).allocate(Mockito.anyBoolean());
+        Mockito.doReturn(inflater).when(inflaterAllocator).allocate();
         Mockito.doReturn(true).when(inflater).needsInput();
         if (!(in instanceof ArraySource)) {
             Mockito.doReturn(readBuffer).when(transferBufferAllocator).allocate(Mockito.anyInt(), Mockito.anyInt());
@@ -255,7 +255,7 @@ class DeflateBlockDataLoaderFailureTest {
         );
 
         Assertions.assertEquals("Invalid target buffer length: " + invalidTargetLength, caughtException.getMessage());
-        Mockito.verify(inflaterAllocator).allocate(true);
+        Mockito.verify(inflaterAllocator).allocate();
         Mockito.verify(inflater).needsDictionary();
         Mockito.verify(inflater).needsInput();
         if (in instanceof ArraySource) {
@@ -277,13 +277,13 @@ class DeflateBlockDataLoaderFailureTest {
     @MethodSource("endiannessAndBlockSizeAndInputTypeCombinations")
     @ParameterizedTest(name = "endianness: {0}, block size: {1}, input type: {2}")
     void testLoadFailsOnTooLongTargetBufferLength(Endianness endianness, BlockSize blockSize, Class<? extends InputStream> inputType) throws IOException {
-        RawTexDataLoader dataLoader = new DeflateBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
+        RawTexDataLoader dataLoader = new InflatingBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
         InputStream in = Mockito.mock(inputType);
         int inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
         Inflater inflater = Mockito.mock(Inflater.class);
         byte[] readBuffer = new byte[inputLength];
 
-        Mockito.doReturn(inflater).when(inflaterAllocator).allocate(Mockito.anyBoolean());
+        Mockito.doReturn(inflater).when(inflaterAllocator).allocate();
         Mockito.doReturn(true).when(inflater).needsInput();
         if (!(in instanceof ArraySource)) {
             Mockito.doReturn(readBuffer).when(transferBufferAllocator).allocate(Mockito.anyInt(), Mockito.anyInt());
@@ -299,7 +299,7 @@ class DeflateBlockDataLoaderFailureTest {
         );
 
         Assertions.assertEquals("Invalid target buffer length: " + tooLongTargetLength, caughtException.getMessage());
-        Mockito.verify(inflaterAllocator).allocate(true);
+        Mockito.verify(inflaterAllocator).allocate();
         Mockito.verify(inflater).needsDictionary();
         Mockito.verify(inflater).needsInput();
         if (in instanceof ArraySource) {
@@ -328,7 +328,7 @@ class DeflateBlockDataLoaderFailureTest {
     }
 
     static int dataLengthToValidDeflatedLength(int dataLength) {
-        return TestDeflateUtils.deflate(new byte[dataLength]).length;
+        return TestDeflateUtils.deflate(true, new byte[dataLength]).length;
     }
 
 }
