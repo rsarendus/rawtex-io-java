@@ -26,8 +26,8 @@ public interface RawTexLoadTarget {
      * Notifies that loading data into the remaining length of the specified buffer has either been completed
      * successfully or aborted. The implementation may now perform any clean-up or finalization, if necessary.
      * <p>
-     * <b>NB:</b> After a successful call to this method, any further interaction with the specified {@link ByteBuffer}
-     * is undefined!
+     * <b>After a successful call to this method, any further interaction with the specified {@link ByteBuffer}
+     * is undefined!</b>
      * <p>
      * The default implementation of this method is a NO-OP.
      *
@@ -42,7 +42,7 @@ public interface RawTexLoadTarget {
      * Notifies that load into this load target has either been completed successfully or aborted.
      * The implementation may now perform any clean-up or finalization, if necessary.
      * <p>
-     * <b>NB:</b> After a successful call to this method, any further interaction via this interface is undefined!
+     * <b>After a successful call to this method, any further interaction via this interface is undefined!</b>
      * <p>
      * The default implementation of this method is a NO-OP.
      *

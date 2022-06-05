@@ -10,10 +10,10 @@ import java.io.InputStream;
 public final class CommonIO {
 
     /**
-     * Reads a single octet from an {@link InputStream} and returns it,
-     * or throws an {@link EOFException} if the end of the stream has already been reached.
+     * Reads a single octet from an input stream and returns it,
+     * or throws an exception if the end of the stream has already been reached.
      *
-     * @param in the {@link InputStream} to read from
+     * @param in the input stream to read from
      *
      * @return the octet read from the stream
      *
@@ -33,14 +33,13 @@ public final class CommonIO {
     }
 
     /**
-     * Reads the requested number of octets from an {@link InputStream} and writes them
-     * into a destination array, or throws an {@link EOFException} if the end of the stream
-     * is reached before reading the requested number of octets.
+     * Reads the requested number of octets from an input stream into a destination array,
+     * or throws an exception if the end of the stream is reached before reading the requested number of octets.
      *
      * In case an exception is thrown, the number of octets written into the destination array
      * is undefined.
      *
-     * @param in the {@link InputStream} to read from
+     * @param in the input stream to read from
      * @param dst the array into which the octets are read
      * @param dstOffset the start offset in array {@code dst} at which the octets are written
      * @param octetsToRead the number of octets to read

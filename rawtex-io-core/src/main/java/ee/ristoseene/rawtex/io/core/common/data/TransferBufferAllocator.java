@@ -8,21 +8,24 @@ public interface TransferBufferAllocator {
 
     /**
      * Returns a byte array of at least {@code minimumLength} bytes long, meant for temporary usage.
-     * The content of the returned array is <b>not</b> guaranteed to be zero initialized.
+     * The maximum requested length is just a hint, indicating the maximum usable range by the caller,
+     * but the implementation is allowed to return either a shorter or a longer array,
+     * as long as the minimum requested length is honored.
+     * <p>
+     * <b>The content of the returned array is not guaranteed to be zero-initialized!</b>
      *
-     * @param minimumLength minimum length of the requested byte array
-     * @param maximumLength maximum usable range in the requested byte array
-     *                      (an implementation is allowed to return a longer array)
+     * @param minimumLength the minimum length of the requested byte array
+     * @param maximumLength the maximum usable range in the requested byte array
      *
      * @return a byte array of at least {@code minimumLength} bytes long
      */
     byte[] allocate(int minimumLength, int maximumLength);
 
     /**
-     * Notifies that the specified byte array will not be used any more by the caller and the implementation may now
-     * re-use the array if applicable.
+     * Notifies that the specified byte array will not be used any more by the caller
+     * and the implementation may now re-use it if applicable.
      * <p>
-     * <b>NB:</b> After a successful call to this method, any further interaction with the specified array is undefined!
+     * <b>After a successful call to this method, any further interaction with the specified array is undefined!</b>
      * <p>
      * The default implementation of this method is a NO-OP.
      *

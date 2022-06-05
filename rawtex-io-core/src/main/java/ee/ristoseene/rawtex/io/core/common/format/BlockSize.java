@@ -1,7 +1,14 @@
 package ee.ristoseene.rawtex.io.core.common.format;
 
+/**
+ * An enum representing the supported range of block sizes.
+ */
 public enum BlockSize {
 
+    /**
+     * The singleton instance representing the block size of 1 octet long
+     * (a block representing an 8-bit value).
+     */
     OCTETS_1(1) {
 
         @Override
@@ -26,6 +33,10 @@ public enum BlockSize {
 
     },
 
+    /**
+     * The singleton instance representing the block size of 2 octets long
+     * (a block representing a 16-bit value).
+     */
     OCTETS_2(2) {
 
         @Override
@@ -50,6 +61,10 @@ public enum BlockSize {
 
     },
 
+    /**
+     * The singleton instance representing the block size of 4 octets long
+     * (a block representing a 32-bit value).
+     */
     OCTETS_4(4) {
 
         @Override
@@ -74,6 +89,10 @@ public enum BlockSize {
 
     },
 
+    /**
+     * The singleton instance representing the block size of 8 octets long
+     * (a block representing a 64-bit value).
+     */
     OCTETS_8(8) {
 
         @Override
@@ -99,7 +118,7 @@ public enum BlockSize {
     };
 
     /**
-     * Block size in number of octets.
+     * The size of the block in number of octets.
      */
     public final int octets;
 
@@ -108,60 +127,62 @@ public enum BlockSize {
     }
 
     /**
-     * Calculates the product of a non-negative integer multiplied by block size
-     * ({@code value * blockSizeInOctets}).
+     * Calculates the product of a non-negative integer multiplied by the block size
+     * ({@code value * blockSize.octets}).
      * <p>
-     * <b>NB:</b> This operation is undefined for negative integers!
+     * <b>This operation is undefined for negative integers!</b>
      *
-     * @param value a non-negative integer to multiply by block size
+     * @param value a non-negative integer to multiply by the block size
      *
-     * @return the product of {@code value} multiplied by block size
+     * @return the product of {@code value} multiplied by the block size
      */
     public abstract int multipleOf(int value);
 
     /**
-     * Calculates the quotient of a non-negative integer divided by block size
-     * ({@code value / blockSizeInOctets}).
+     * Calculates the quotient of a non-negative integer divided by the block size
+     * ({@code value / blockSize.octets}).
      * <p>
-     * <b>NB:</b> This operation is undefined for negative integers!
+     * <b>This operation is undefined for negative integers!</b>
      *
-     * @param value a non-negative integer to divide by block size
+     * @param value a non-negative integer to divide by the block size
      *
-     * @return the quotient of {@code value} divided by block size
+     * @return the quotient of {@code value} divided by the block size
      */
     public abstract int quotientOf(int value);
 
     /**
-     * Calculates the remainder of a non-negative integer divided by block size
-     * ({@code value % blockSizeInOctets}).
+     * Calculates the remainder of a non-negative integer divided by the block size
+     * ({@code value % blockSize.octets}).
      * <p>
-     * <b>NB:</b> This operation is undefined for negative integers!
+     * <b>This operation is undefined for negative integers!</b>
      *
-     * @param value a non-negative integer to divide by block size
+     * @param value a non-negative integer to divide by the block size
      *
-     * @return the remainder of {@code value} divided by block size
+     * @return the remainder of {@code value} divided by the block size
      */
     public abstract int remainderOf(int value);
 
     /**
-     * Truncates a non-negative integer
+     * Truncates a non-negative integer into a multiple of the block size
+     * ({@code value - (value % blockSize.octets)}).
      * <p>
-     * <b>NB:</b> This operation is undefined for negative integers!
+     * <b>This operation is undefined for negative integers!</b>
      *
      * @param value a non-negative integer to truncate
      *
-     * @return the truncation of {@code value}
+     * @return the truncation of {@code value}, a multiple of the block size
      */
     public abstract int truncate(int value);
 
     /**
-     * Returns an instance of {@link BlockSize} representing the specified number of octets.
+     * Obtains an instance of {@link BlockSize} with the specified number of octets.
      *
-     * @param octets the number of octets of the requested {@link BlockSize}
+     * @param octets the number of octets of the requested block size
      *
-     * @return an instance of {@link BlockSize} representing the specified number of octets
+     * @return the block size of the specified number of octets, not {@code null}
      *
-     * @throws IllegalArgumentException if the specified number of octets does not represent a valid {@link BlockSize}
+     * @throws IllegalArgumentException if the specified number of octets
+     * does not represent a valid block size
      */
     public static BlockSize of(int octets) {
         switch (octets) {
@@ -185,13 +206,14 @@ public enum BlockSize {
     }
 
     /**
-     * Returns an instance of {@link BlockSize} representing the specified power of two.
+     * Obtains an instance of {@link BlockSize} representing the specified power of two.
      *
-     * @param exponent the power of two exponent of the requested {@link BlockSize}
+     * @param exponent the power of two exponent of the requested block size
      *
-     * @return an instance of {@link BlockSize} representing the specified power of two
+     * @return the block size of the specified power of two, not {@code null}
      *
-     * @throws IllegalArgumentException if the specified power of two exponent does not represent a valid {@link BlockSize}
+     * @throws IllegalArgumentException if the specified power of two exponent
+     * does not represent a valid block size
      */
     public static BlockSize fromPowerOfTwo(int exponent) {
         switch (exponent) {

@@ -14,29 +14,32 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 
 /**
- * An implementation of {@link RawTexDataLoader} for loading uncompressed data from input streams into any kind of
+ * An implementation of {@link RawTexDataLoader} for loading uncompressed data from input streams into
  * {@link ByteBuffer}s, providing automatic endianness conversion as necessary.
- * The loader counts loadable data in blocks, thus the loader can only load and transfer data into the destination
- * buffer in chunks with lengths equal to multiples of specific block size.
+ * The loader counts loadable data in blocks, thus the loader can only load and transfer data into destination
+ * buffers in chunks equal to multiples of specific block size.
  * <p>
  * Depending on the type of input and/or output, certain fast paths could be chosen:
  * <ul>
- *     <li>Input data is dumped directly into the target buffer, if input data is backed by a byte array and the target
- *     endianness matches the source endianness</li>
- *     <li>Input data is read directly from stream into the target buffer, if the target buffer is an array-backed buffer
- *     and the target endianness matches the source endianness</li>
+ *     <li>Input data is dumped directly into the target buffer, if input data is
+ *     {@link ArraySource backed by a byte array} and the target endianness matches the source endianness</li>
+ *     <li>Input data is read directly from stream into the target buffer, if the target buffer is an array-backed
+ *     buffer and the target endianness matches the source endianness</li>
  * </ul>
  * <p>
- * In case input data is not backed by a byte array, and target buffer is either not an array-backed buffer or endianness
- * conversion is necessary, then temporary byte arrays need to be allocated in order to be able to read bytes from input
- * streams in chunks. Such temporary byte arrays are obtained automatically as needed via the
+ * In case input data is not backed by a byte array, and target buffer is either not an array-backed buffer or
+ * endianness conversion is necessary, then temporary byte arrays need to be allocated in order to be able to read
+ * bytes from input streams in chunks. Such temporary byte arrays are obtained automatically as needed via the
  * {@link TransferBufferAllocator} interface.
- * In case allocating transfer buffers is necessary, a call to {@link #load(InputStream, int, RawTexLoadTarget, int)}
- * is guaranteed to allocate a single transfer buffer at a time - i.e. a call to
- * {@link TransferBufferAllocator#allocate(int, int)} is always followed by a corresponding call to
- * {@link TransferBufferAllocator#free(byte[])} before another {@link TransferBufferAllocator#allocate(int, int)}
- * is invoked.
- * The minimum required transfer buffer size is equal to block size.
+ * In case allocating transfer buffers is necessary, a call to
+ * {@link #load(InputStream, int, RawTexLoadTarget, int) load} is guaranteed to allocate a single transfer buffer
+ * at a time - i.e. a call to {@link TransferBufferAllocator#allocate(int, int)} is always followed by a corresponding
+ * call to {@link TransferBufferAllocator#free(byte[])} before another
+ * {@link TransferBufferAllocator#allocate(int, int)} is invoked.
+ * The minimum required transfer buffer size is equal to {@link #blockSize block size}.
+ * <p>
+ * Instances of this class hold no direct mutable state, and are thread-safe as long as the
+ * implementation of the assigned {@link TransferBufferAllocator} is thread-safe.
  */
 public class RawBlockDataLoader extends AbstractTransferBufferingBlockDataLoader implements RawTexDataLoader {
 
@@ -59,14 +62,14 @@ public class RawBlockDataLoader extends AbstractTransferBufferingBlockDataLoader
     }
 
     /**
-     * Performs a load operation from the specified input stream into the specified destination.
+     * {@inheritDoc}
      *
-     * @param in the stream to perform the data load from
-     * @param inputLength number of octets to read from the input stream {@code in}
-     * @param loadTarget destination for the load operation
-     * @param dataLength data length in number of octets
+     * @param in {@inheritDoc}
+     * @param inputLength {@inheritDoc}
+     * @param loadTarget {@inheritDoc}
+     * @param dataLength {@inheritDoc}
      *
-     * @throws IOException if an I/O error occurs
+     * @throws IOException {@inheritDoc}
      * @throws IllegalArgumentException if data length is not a multiple of block size
      * or if input length does not match data length
      * @throws IllegalStateException if destination buffer's {@link ByteBuffer#remaining()} is less than block size,

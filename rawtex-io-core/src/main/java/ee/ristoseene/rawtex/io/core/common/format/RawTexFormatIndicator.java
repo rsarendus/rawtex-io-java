@@ -10,13 +10,17 @@ import java.util.Objects;
 public enum RawTexFormatIndicator implements OctetSequence {
 
     /**
-     * Big-endian format indicator, represented by the upper case ASCII string "{@code RAWTEX}"
+     * The singleton instance representing the big-endian {@code RAWTEX} binary format.
+     * <p>
+     * The octets of the format indicator form an upper case ASCII string "{@code RAWTEX}"
      * (52<sub>h</sub> 41<sub>h</sub> 57<sub>h</sub> 54<sub>h</sub> 45<sub>h</sub> 58<sub>h</sub>).
      */
     BIG_ENDIAN("RAWTEX", Endianness.BIG_ENDIAN),
 
     /**
-     * Little-endian format indicator, represented by the lower case ASCII string "{@code rawtex}"
+     * The singleton instance representing the little-endian {@code RAWTEX} binary format.
+     * <p>
+     * The octets of the format indicator form a lower case ASCII string "{@code rawtex}"
      * (72<sub>h</sub> 61<sub>h</sub> 77<sub>h</sub> 74<sub>h</sub> 65<sub>h</sub> 78<sub>h</sub>).
      */
     LITTLE_ENDIAN("rawtex", Endianness.LITTLE_ENDIAN);
@@ -42,17 +46,16 @@ public enum RawTexFormatIndicator implements OctetSequence {
     }
 
     /**
-     * Returns the octet value at the specified index.
-     * An index ranges from {@code 0} to {@code length() - 1}.
+     * {@inheritDoc}
      *
-     * @param index the index of the octet value to be returned
+     * @param index {@inheritDoc}
      *
-     * @return the specified octet value
+     * @return {@inheritDoc}
      *
-     * @throws IndexOutOfBoundsException if {@code index} is negative or not less than {@code length()}
+     * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public byte octetAt(int index) {
+    public final byte octetAt(int index) {
         return octets[index];
     }
 
@@ -62,7 +65,7 @@ public enum RawTexFormatIndicator implements OctetSequence {
      * @return the number of octets in this format indicator
      */
     @Override
-    public int length() {
+    public final int length() {
         return octets.length;
     }
 
@@ -73,7 +76,7 @@ public enum RawTexFormatIndicator implements OctetSequence {
      * whose contents are initialized to contain the sequence of bytes represented by this format indicator
      */
     @Override
-    public byte[] toByteArray() {
+    public final byte[] toByteArray() {
         return octets.clone();
     }
 
@@ -83,7 +86,7 @@ public enum RawTexFormatIndicator implements OctetSequence {
      * @return the textual representation of this format indicator
      */
     @Override
-    public String toString() {
+    public final String toString() {
         return string;
     }
 
@@ -119,8 +122,8 @@ public enum RawTexFormatIndicator implements OctetSequence {
      *
      * @return the format indicator, not {@code null}
      *
-     * @throws IllegalArgumentException if not format indicator
-     * corresponds to the specified text
+     * @throws IllegalArgumentException if no format indicator
+     * corresponds to the specified textual form
      */
     public static RawTexFormatIndicator of(String formatIndicatorString) {
         if (LITTLE_ENDIAN.string.equals(formatIndicatorString)) {
