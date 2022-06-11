@@ -132,9 +132,14 @@ public class InflatingBlockDataLoader extends AbstractTransferBufferingBlockData
         final byte[] readBuffer = allocateTransferBuffer(MINIMUM_READ_LENGTH_FOR_INFLATION, inputLength);
 
         try {
-            final int readLength = Math.min(validateTransferBufferAndReturnLength(readBuffer, MINIMUM_READ_LENGTH_FOR_INFLATION), inputLength);
+            int readLength = Math.min(validateTransferBufferAndReturnLength(readBuffer, MINIMUM_READ_LENGTH_FOR_INFLATION), inputLength);
 
-            CommonIO.readOctets(in, readBuffer, 0, readLength);
+            if (readLength != inputLength) {
+                readLength = CommonIO.readOctets(in, readBuffer, 0, readLength);
+            } else {
+                CommonIO.readNOctets(in, readBuffer, 0, readLength);
+            }
+
             inputLength -= readLength;
 
             try {
@@ -317,9 +322,9 @@ public class InflatingBlockDataLoader extends AbstractTransferBufferingBlockData
 
             ensureInflaterStateForInput(inflater);
 
-            final int readLength = Math.min(remainingInputLength, readBuffer.length);
+            int readLength = Math.min(remainingInputLength, readBuffer.length);
 
-            CommonIO.readOctets(in, readBuffer, 0, readLength);
+            readLength = CommonIO.readOctets(in, readBuffer, 0, readLength);
             inflater.setInput(readBuffer, 0, readLength);
 
             remainingInputLength -= readLength;

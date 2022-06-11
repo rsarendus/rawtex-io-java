@@ -2,7 +2,10 @@ package ee.ristoseene.rawtex.io.core.common.test;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 public final class TestBufferUtils {
 
@@ -60,6 +63,29 @@ public final class TestBufferUtils {
         return destination;
     }
 
-    private TestBufferUtils() {}
+    public static byte[] createByteArray(int length, byte filler) {
+        byte[] destination = new byte[length];
+        Arrays.fill(destination, filler);
+        return destination;
+    }
+
+    public static byte[] createByteArray(int length, byte filler, int offset, byte[] bytes) {
+        byte[] destination = createByteArray(length, filler);
+        System.arraycopy(destination, offset, bytes, 0, bytes.length);
+        return destination;
+    }
+
+    public static byte[] createByteArray(int length, byte filler, int offset, IntStream byteStream) {
+        byte[] destination = createByteArray(length, filler);
+        final AtomicInteger byteOffset = new AtomicInteger(offset);
+        byteStream.forEach(i -> {
+            destination[byteOffset.getAndIncrement()] = (byte) (i & 0xff);
+        });
+        return destination;
+    }
+
+    private TestBufferUtils() {
+        throw new UnsupportedOperationException();
+    }
 
 }

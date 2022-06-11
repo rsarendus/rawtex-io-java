@@ -152,9 +152,9 @@ public class RawBlockDataLoader extends AbstractTransferBufferingBlockDataLoader
             final int transferBufferLength = validateTransferBufferAndReturnLength(transferBuffer, MINIMUM_TRANSFER_LENGTH_VIA_PUT);
 
             do {
-                final int transferLength = Math.min(length, transferBufferLength);
+                int transferLength = Math.min(length, transferBufferLength);
 
-                CommonIO.readOctets(in, transferBuffer, 0, transferLength);
+                transferLength = CommonIO.readOctets(in, transferBuffer, 0, transferLength);
                 out.put(transferBuffer, 0, transferLength);
 
                 length -= transferLength;
@@ -173,7 +173,7 @@ public class RawBlockDataLoader extends AbstractTransferBufferingBlockDataLoader
             do {
                 final int transferBlockCount = Math.min(blockCount, transferBufferBlockCount);
 
-                CommonIO.readOctets(in, transferBuffer, 0, blockSize.multipleOf(transferBlockCount));
+                CommonIO.readNOctets(in, transferBuffer, 0, blockSize.multipleOf(transferBlockCount));
                 transferBlockWise(transferBuffer, 0, transferBlockCount, out);
 
                 blockCount -= transferBlockCount;
@@ -186,7 +186,7 @@ public class RawBlockDataLoader extends AbstractTransferBufferingBlockDataLoader
     private static void readIntoArrayBackedBuffer(InputStream in, ByteBuffer out, int length) throws IOException {
         final int position = out.position();
 
-        CommonIO.readOctets(in, out.array(), out.arrayOffset() + position, length);
+        CommonIO.readNOctets(in, out.array(), out.arrayOffset() + position, length);
         out.position(position + length);
     }
 

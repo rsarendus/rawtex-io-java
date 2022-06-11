@@ -25,11 +25,46 @@ public final class CommonIO {
     public static byte readOctet(InputStream in) throws IOException {
         final int octetValue = in.read();
 
-        if (octetValue < 0) {
-            throw unexpectedEndOfInputException();
+        if (octetValue >= 0) {
+            return (byte) octetValue;
         }
 
-        return (byte) octetValue;
+        throw unexpectedEndOfInputException();
+    }
+
+    /**
+     * Reads up to the requested number of octets from an input stream into a destination array,
+     * or throws an exception if the end of the stream has already been reached.
+     *
+     * In case the requested maximum number of octets to read is greater than {@code 0},
+     * then at least one octet is guaranteed to be read, unless an exception is thrown.
+     *
+     * @param in the input stream to read from
+     * @param dst the array into which the octets are read
+     * @param dstOffset the start offset in array {@code dst} at which the octets are written
+     * @param maxOctetsToRead the maximum number of octets to read
+     *
+     * @return the actual number of octets read
+     *
+     * @throws EOFException if no octet can be read because the end of the stream has already been reached
+     * @throws IOException if an I/O error occurs
+     *
+     * @see InputStream#read(byte[], int, int)
+     */
+    public static int readOctets(InputStream in, byte[] dst, int dstOffset, int maxOctetsToRead) throws IOException {
+        final int octetsRead = in.read(dst, dstOffset, maxOctetsToRead);
+
+        if (octetsRead > 0) {
+            return octetsRead;
+        } else if (octetsRead < 0) {
+            throw unexpectedEndOfInputException();
+        } else if (maxOctetsToRead > 0) {
+            // Just in case to avoid any potential infinite loops
+            dst[dstOffset] = readOctet(in);
+            return 1;
+        } else {
+            return 0;
+        }
     }
 
     /**
@@ -49,17 +84,13 @@ public final class CommonIO {
      *
      * @see InputStream#read(byte[], int, int)
      */
-    public static void readOctets(InputStream in, byte[] dst, int dstOffset, int octetsToRead) throws IOException {
-        while (octetsToRead > 0) {
-            final int octetsRead = in.read(dst, dstOffset, octetsToRead);
-
-            if (octetsRead < 0) {
-                throw unexpectedEndOfInputException();
-            }
+    public static void readNOctets(InputStream in, byte[] dst, int dstOffset, int octetsToRead) throws IOException {
+        do {
+            final int octetsRead = readOctets(in, dst, dstOffset, octetsToRead);
 
             octetsToRead -= octetsRead;
             dstOffset += octetsRead;
-        }
+        } while (octetsToRead > 0);
     }
 
     /**
