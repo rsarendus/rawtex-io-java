@@ -32,7 +32,7 @@ import java.nio.ByteBuffer;
  * bytes from input streams in chunks. Such temporary byte arrays are obtained automatically as needed via the
  * {@link TransferBufferAllocator} interface.
  * In case allocating transfer buffers is necessary, a call to
- * {@link #load(InputStream, int, RawTexLoadTarget, int) load} is guaranteed to allocate a single transfer buffer
+ * {@link #load(InputStream, long, RawTexLoadTarget, long) load} is guaranteed to allocate a single transfer buffer
  * at a time - i.e. a call to {@link TransferBufferAllocator#allocate(int, int)} is always followed by a corresponding
  * call to {@link TransferBufferAllocator#free(byte[])} before another
  * {@link TransferBufferAllocator#allocate(int, int)} is invoked.
@@ -76,7 +76,7 @@ public class RawBlockDataLoader extends AbstractTransferBufferingBlockDataLoader
      * is not a multiple of block size or is greater than the remaining data length
      */
     @Override
-    public void load(InputStream in, int inputLength, RawTexLoadTarget loadTarget, int dataLength) throws IOException {
+    public void load(InputStream in, long inputLength, RawTexLoadTarget loadTarget, long dataLength) throws IOException {
         ensureDataLengthIsValidMultipleOfBlockSize(dataLength);
 
         if (inputLength != dataLength) {
@@ -91,7 +91,7 @@ public class RawBlockDataLoader extends AbstractTransferBufferingBlockDataLoader
         }
     }
 
-    private void loadFromArray(byte[] in, int inOffset, int remainingLength, RawTexLoadTarget loadTarget) {
+    private void loadFromArray(byte[] in, int inOffset, long remainingLength, RawTexLoadTarget loadTarget) {
         int dataOffset = 0;
 
         do {
@@ -114,11 +114,11 @@ public class RawBlockDataLoader extends AbstractTransferBufferingBlockDataLoader
             } finally {
                 loadTarget.release(targetBuffer, complete);
             }
-        } while (remainingLength > 0);
+        } while (remainingLength > 0L);
     }
 
-    private void loadFromStream(InputStream in, int remainingLength, RawTexLoadTarget loadTarget) throws IOException {
-        int dataOffset = 0;
+    private void loadFromStream(InputStream in, long remainingLength, RawTexLoadTarget loadTarget) throws IOException {
+        long dataOffset = 0L;
 
         do {
             final ByteBuffer targetBuffer = loadTarget.acquire(dataOffset, remainingLength);
@@ -142,7 +142,7 @@ public class RawBlockDataLoader extends AbstractTransferBufferingBlockDataLoader
             } finally {
                 loadTarget.release(targetBuffer, complete);
             }
-        } while (remainingLength > 0);
+        } while (remainingLength > 0L);
     }
 
     private void putViaTransferBuffer(InputStream in, ByteBuffer out, int length) throws IOException {

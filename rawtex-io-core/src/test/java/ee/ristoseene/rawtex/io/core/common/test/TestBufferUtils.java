@@ -84,6 +84,31 @@ public final class TestBufferUtils {
         return destination;
     }
 
+    public static void zeroFillBuffer(ByteBuffer buffer, int offset, int length) {
+        if (offset < 0 || length < 0 || buffer.capacity() - offset < length) {
+            throw new ArrayIndexOutOfBoundsException();
+        } else if (buffer.hasArray()) {
+            final int fromIndex = buffer.arrayOffset() + offset;
+            final int toIndex = fromIndex + length;
+
+            Arrays.fill(buffer.array(), fromIndex, toIndex, (byte) 0);
+        } else {
+            final int blockSize = Long.BYTES;
+            final int remainder = length % blockSize;
+            final int blockWiseLimit = length - remainder + offset;
+
+            // It's significantly faster to write larger blocks instead of individual bytes
+            for (int i = offset; i < blockWiseLimit; i += blockSize) {
+                buffer.putLong(i, 0L);
+            }
+
+            // Write the remaining bytes
+            for (int i = blockWiseLimit; i < length; ++i) {
+                buffer.put(i, (byte) 0);
+            }
+        }
+    }
+
     private TestBufferUtils() {
         throw new UnsupportedOperationException();
     }

@@ -30,11 +30,11 @@ import java.util.zip.Inflater;
  * automatically as needed via the {@link TransferBufferAllocator} interface.
  * <ul>
  *     <li>In case allocating a buffer for loading input from a stream into the inflater is necessary, a call to
- *     {@link #load(InputStream, int, RawTexLoadTarget, int) load} is guaranteed to allocate a single read buffer
+ *     {@link #load(InputStream, long, RawTexLoadTarget, long) load} is guaranteed to allocate a single read buffer
  *     for that purpose. The minimum required read buffer size is guaranteed to not exceed
  *     {@value #MINIMUM_READ_LENGTH_FOR_INFLATION}.</li>
  *     <li>In case allocating buffers is necessary for transferring inflater output, a call to
- *     {@link #load(InputStream, int, RawTexLoadTarget, int) load} is guaranteed to allocate a single transfer
+ *     {@link #load(InputStream, long, RawTexLoadTarget, long) load} is guaranteed to allocate a single transfer
  *     buffer at a time - i.e. a call to {@link TransferBufferAllocator#allocate(int, int)} is always followed by
  *     a corresponding call to {@link TransferBufferAllocator#free(byte[])} before another
  *     {@link TransferBufferAllocator#allocate(int, int)} is invoked. The minimum required transfer buffer size is
@@ -45,14 +45,14 @@ import java.util.zip.Inflater;
  * <p>
  * In case any input buffers are bound to the inflater allocated via the {@link InflaterAllocator} interface,
  * the {@link Inflater#reset() inflater is guaranteed to be reset} before it is returned to its allocator in order
- * to prevent any leakage from the scope of {@link #load(InputStream, int, RawTexLoadTarget, int) load}.
+ * to prevent any leakage from the scope of {@link #load(InputStream, long, RawTexLoadTarget, long) load}.
  * <p>
  * Instances of this class hold no direct mutable state, and are thread-safe as long as the
  * implementations of the assigned {@link InflaterAllocator} and {@link TransferBufferAllocator} are thread-safe.
  */
 public class InflatingBlockDataLoader extends AbstractTransferBufferingBlockDataLoader implements RawTexDataLoader {
 
-    private static final int MINIMUM_INPUT_LENGTH = 1;
+    private static final long MINIMUM_INPUT_LENGTH = 1L;
     private static final int MINIMUM_READ_LENGTH_FOR_INFLATION = 1;
 
     private final InflaterAllocator inflaterAllocator;
@@ -91,7 +91,7 @@ public class InflatingBlockDataLoader extends AbstractTransferBufferingBlockData
      * is not a multiple of block size or is greater than the remaining data length
      */
     @Override
-    public void load(InputStream in, int inputLength, RawTexLoadTarget loadTarget, int dataLength) throws IOException {
+    public void load(InputStream in, long inputLength, RawTexLoadTarget loadTarget, long dataLength) throws IOException {
         ensureDataLengthIsValidMultipleOfBlockSize(dataLength);
 
         if (inputLength < MINIMUM_INPUT_LENGTH) {
@@ -117,22 +117,22 @@ public class InflatingBlockDataLoader extends AbstractTransferBufferingBlockData
         }
     }
 
-    private void load(Inflater inflater, ArraySource in, int inputLength, RawTexLoadTarget loadTarget, int dataLength) throws IOException {
+    private void load(Inflater inflater, ArraySource in, long inputLength, RawTexLoadTarget loadTarget, long dataLength) throws IOException {
         final int inputOffset = in.ensureAvailableAndAdvance(inputLength);
 
         try {
-            inflater.setInput(in.array, inputOffset, inputLength);
+            inflater.setInput(in.array, inputOffset, (int) inputLength);
             loadFromInflater(inflater, dataLength, loadTarget);
         } finally {
             inflater.reset();
         }
     }
 
-    private void load(Inflater inflater, InputStream in, int inputLength, RawTexLoadTarget loadTarget, int dataLength) throws IOException {
-        final byte[] readBuffer = allocateTransferBuffer(MINIMUM_READ_LENGTH_FOR_INFLATION, inputLength);
+    private void load(Inflater inflater, InputStream in, long inputLength, RawTexLoadTarget loadTarget, long dataLength) throws IOException {
+        final byte[] readBuffer = allocateTransferBuffer(MINIMUM_READ_LENGTH_FOR_INFLATION, (int) Math.min(inputLength, Integer.MAX_VALUE));
 
         try {
-            int readLength = Math.min(validateTransferBufferAndReturnLength(readBuffer, MINIMUM_READ_LENGTH_FOR_INFLATION), inputLength);
+            int readLength = (int) Math.min(validateTransferBufferAndReturnLength(readBuffer, MINIMUM_READ_LENGTH_FOR_INFLATION), inputLength);
 
             if (readLength != inputLength) {
                 readLength = CommonIO.readOctets(in, readBuffer, 0, readLength);
@@ -158,8 +158,8 @@ public class InflatingBlockDataLoader extends AbstractTransferBufferingBlockData
         }
     }
 
-    private void loadFromInflater(Inflater inflater, int remainingLength, RawTexLoadTarget loadTarget) throws IOException {
-        int dataOffset = 0;
+    private void loadFromInflater(Inflater inflater, long remainingLength, RawTexLoadTarget loadTarget) throws IOException {
+        long dataOffset = 0L;
 
         do {
             final ByteBuffer targetBuffer = loadTarget.acquire(dataOffset, remainingLength);
@@ -181,11 +181,11 @@ public class InflatingBlockDataLoader extends AbstractTransferBufferingBlockData
             } finally {
                 loadTarget.release(targetBuffer, complete);
             }
-        } while (remainingLength > 0);
+        } while (remainingLength > 0L);
     }
 
-    private void loadFromStream(InflationState inflationState, int remainingLength, RawTexLoadTarget loadTarget) throws IOException {
-        int dataOffset = 0;
+    private void loadFromStream(InflationState inflationState, long remainingLength, RawTexLoadTarget loadTarget) throws IOException {
+        long dataOffset = 0L;
 
         do {
             final ByteBuffer targetBuffer = loadTarget.acquire(dataOffset, remainingLength);
@@ -207,7 +207,7 @@ public class InflatingBlockDataLoader extends AbstractTransferBufferingBlockData
             } finally {
                 loadTarget.release(targetBuffer, complete);
             }
-        } while (remainingLength > 0);
+        } while (remainingLength > 0L);
     }
 
     private void inflateFullyViaTransferBuffer(Inflater inflater, ByteBuffer out, int blockCount) throws IOException {
@@ -305,9 +305,9 @@ public class InflatingBlockDataLoader extends AbstractTransferBufferingBlockData
         private final InputStream in;
         private final byte[] readBuffer;
 
-        private int remainingInputLength;
+        private long remainingInputLength;
 
-        public InflationState(Inflater inflater, byte[] readBuffer, InputStream in, int inputLength) {
+        public InflationState(Inflater inflater, byte[] readBuffer, InputStream in, long inputLength) {
             this.inflater = Objects.requireNonNull(inflater);
             this.readBuffer = Objects.requireNonNull(readBuffer);
             this.in = Objects.requireNonNull(in);
@@ -316,13 +316,13 @@ public class InflatingBlockDataLoader extends AbstractTransferBufferingBlockData
         }
 
         public void readNextBatchIntoInflater() throws IOException {
-            if (remainingInputLength <= 0) {
+            if (remainingInputLength <= 0L) {
                 throw CommonIO.unexpectedEndOfInputException();
             }
 
             ensureInflaterStateForInput(inflater);
 
-            int readLength = Math.min(remainingInputLength, readBuffer.length);
+            int readLength = (int) Math.min(remainingInputLength, readBuffer.length);
 
             readLength = CommonIO.readOctets(in, readBuffer, 0, readLength);
             inflater.setInput(readBuffer, 0, readLength);

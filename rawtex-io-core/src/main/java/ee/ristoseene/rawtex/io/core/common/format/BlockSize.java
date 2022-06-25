@@ -17,7 +17,17 @@ public enum BlockSize {
         }
 
         @Override
+        public final long multipleOf(long value) {
+            return value;
+        }
+
+        @Override
         public final int quotientOf(int value) {
+            return value;
+        }
+
+        @Override
+        public final long quotientOf(long value) {
             return value;
         }
 
@@ -27,7 +37,17 @@ public enum BlockSize {
         }
 
         @Override
+        public final long remainderOf(long value) {
+            return 0L;
+        }
+
+        @Override
         public final int truncate(int value) {
+            return value;
+        }
+
+        @Override
+        public final long truncate(long value) {
             return value;
         }
 
@@ -45,7 +65,17 @@ public enum BlockSize {
         }
 
         @Override
+        public final long multipleOf(long value) {
+            return (value << 1);
+        }
+
+        @Override
         public final int quotientOf(int value) {
+            return (value >>> 1);
+        }
+
+        @Override
+        public final long quotientOf(long value) {
             return (value >>> 1);
         }
 
@@ -55,8 +85,18 @@ public enum BlockSize {
         }
 
         @Override
+        public final long remainderOf(long value) {
+            return (value & 0b1L);
+        }
+
+        @Override
         public final int truncate(int value) {
             return (value & (~0b1));
+        }
+
+        @Override
+        public final long truncate(long value) {
+            return (value & (~0b1L));
         }
 
     },
@@ -73,7 +113,17 @@ public enum BlockSize {
         }
 
         @Override
+        public final long multipleOf(long value) {
+            return (value << 2);
+        }
+
+        @Override
         public final int quotientOf(int value) {
+            return (value >>> 2);
+        }
+
+        @Override
+        public final long quotientOf(long value) {
             return (value >>> 2);
         }
 
@@ -83,8 +133,18 @@ public enum BlockSize {
         }
 
         @Override
+        public final long remainderOf(long value) {
+            return (value & 0b11L);
+        }
+
+        @Override
         public final int truncate(int value) {
             return (value & (~0b11));
+        }
+
+        @Override
+        public final long truncate(long value) {
+            return (value & (~0b11L));
         }
 
     },
@@ -101,7 +161,17 @@ public enum BlockSize {
         }
 
         @Override
+        public final long multipleOf(long value) {
+            return (value << 3);
+        }
+
+        @Override
         public final int quotientOf(int value) {
+            return (value >>> 3);
+        }
+
+        @Override
+        public final long quotientOf(long value) {
             return (value >>> 3);
         }
 
@@ -111,8 +181,18 @@ public enum BlockSize {
         }
 
         @Override
+        public final long remainderOf(long value) {
+            return (value & 0b111L);
+        }
+
+        @Override
         public final int truncate(int value) {
             return (value & (~0b111));
+        }
+
+        @Override
+        public final long truncate(long value) {
+            return (value & (~0b111L));
         }
 
     };
@@ -127,52 +207,106 @@ public enum BlockSize {
     }
 
     /**
-     * Calculates the product of a non-negative integer multiplied by the block size
+     * Calculates the product of a non-negative {@code int} value multiplied by the block size
      * ({@code value * blockSize.octets}).
      * <p>
-     * <b>This operation is undefined for negative integers!</b>
+     * <b>This operation is undefined for negative values!</b>
+     * <p>
+     * <b>This operation is undefined for values greater than
+     * {@link Integer#MAX_VALUE} {@code / blockSize.octets}!</b>
      *
-     * @param value a non-negative integer to multiply by the block size
+     * @param value a non-negative {@code int} value to multiply by the block size
      *
      * @return the product of {@code value} multiplied by the block size
      */
     public abstract int multipleOf(int value);
 
     /**
-     * Calculates the quotient of a non-negative integer divided by the block size
+     * Calculates the product of a non-negative {@code long} value multiplied by the block size
+     * ({@code value * blockSize.octets}).
+     * <p>
+     * <b>This operation is undefined for negative values!</b>
+     * <p>
+     * <b>This operation is undefined for values greater than
+     * {@link Long#MAX_VALUE} {@code / blockSize.octets}!</b>
+     *
+     * @param value a non-negative {@code long} value to multiply by the block size
+     *
+     * @return the product of {@code value} multiplied by the block size
+     */
+    public abstract long multipleOf(long value);
+
+    /**
+     * Calculates the quotient of a non-negative {@code int} value divided by the block size
      * ({@code value / blockSize.octets}).
      * <p>
-     * <b>This operation is undefined for negative integers!</b>
+     * <b>This operation is undefined for negative values!</b>
      *
-     * @param value a non-negative integer to divide by the block size
+     * @param value a non-negative {@code int} value to divide by the block size
      *
      * @return the quotient of {@code value} divided by the block size
      */
     public abstract int quotientOf(int value);
 
     /**
-     * Calculates the remainder of a non-negative integer divided by the block size
+     * Calculates the quotient of a non-negative {@code long} value divided by the block size
+     * ({@code value / blockSize.octets}).
+     * <p>
+     * <b>This operation is undefined for negative values!</b>
+     *
+     * @param value a non-negative {@code long} value to divide by the block size
+     *
+     * @return the quotient of {@code value} divided by the block size
+     */
+    public abstract long quotientOf(long value);
+
+    /**
+     * Calculates the remainder of a non-negative {@code int} value divided by the block size
      * ({@code value % blockSize.octets}).
      * <p>
-     * <b>This operation is undefined for negative integers!</b>
+     * <b>This operation is undefined for negative values!</b>
      *
-     * @param value a non-negative integer to divide by the block size
+     * @param value a non-negative {@code int} value to divide by the block size
      *
      * @return the remainder of {@code value} divided by the block size
      */
     public abstract int remainderOf(int value);
 
     /**
-     * Truncates a non-negative integer into a multiple of the block size
+     * Calculates the remainder of a non-negative {@code long} value divided by the block size
+     * ({@code value % blockSize.octets}).
+     * <p>
+     * <b>This operation is undefined for negative values!</b>
+     *
+     * @param value a non-negative {@code long} value to divide by the block size
+     *
+     * @return the remainder of {@code value} divided by the block size
+     */
+    public abstract long remainderOf(long value);
+
+    /**
+     * Truncates a non-negative {@code int} value into a multiple of the block size
      * ({@code value - (value % blockSize.octets)}).
      * <p>
-     * <b>This operation is undefined for negative integers!</b>
+     * <b>This operation is undefined for negative values!</b>
      *
-     * @param value a non-negative integer to truncate
+     * @param value a non-negative {@code int} value to truncate
      *
      * @return the truncation of {@code value}, a multiple of the block size
      */
     public abstract int truncate(int value);
+
+    /**
+     * Truncates a non-negative {@code long} value into a multiple of the block size
+     * ({@code value - (value % blockSize.octets)}).
+     * <p>
+     * <b>This operation is undefined for negative values!</b>
+     *
+     * @param value a non-negative {@code long} value to truncate
+     *
+     * @return the truncation of {@code value}, a multiple of the block size
+     */
+    public abstract long truncate(long value);
 
     /**
      * Obtains an instance of {@link BlockSize} with the specified number of octets.

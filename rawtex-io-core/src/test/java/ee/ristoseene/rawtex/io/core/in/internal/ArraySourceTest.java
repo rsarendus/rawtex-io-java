@@ -18,7 +18,7 @@ class ArraySourceTest {
         ArraySource arraySource = new ArraySource(array);
 
         Assertions.assertSame(array, arraySource.array);
-        Assertions.assertEquals(0, arraySource.ensureAvailableAndAdvance(0));
+        Assertions.assertEquals(0, arraySource.ensureAvailableAndAdvance(0L));
         Assertions.assertEquals(arrayLength, arraySource.available());
     }
 
@@ -30,7 +30,7 @@ class ArraySourceTest {
         ArraySource arraySource = new ArraySource(array, 2, arrayLength);
 
         Assertions.assertSame(array, arraySource.array);
-        Assertions.assertEquals(2, arraySource.ensureAvailableAndAdvance(0));
+        Assertions.assertEquals(2, arraySource.ensureAvailableAndAdvance(0L));
         Assertions.assertEquals(arrayLength, arraySource.available());
     }
 
@@ -71,13 +71,13 @@ class ArraySourceTest {
         ArraySource arraySource = new ArraySource(new byte[5]);
 
         Assertions.assertEquals(5, arraySource.available());
-        Assertions.assertEquals(0, arraySource.ensureAvailableAndAdvance(3));
+        Assertions.assertEquals(0, arraySource.ensureAvailableAndAdvance(3L));
 
         Assertions.assertEquals(2, arraySource.available());
-        Assertions.assertEquals(3, arraySource.ensureAvailableAndAdvance(1));
+        Assertions.assertEquals(3, arraySource.ensureAvailableAndAdvance(1L));
 
         Assertions.assertEquals(1, arraySource.available());
-        Assertions.assertEquals(4, arraySource.ensureAvailableAndAdvance(0));
+        Assertions.assertEquals(4, arraySource.ensureAvailableAndAdvance(0L));
 
         Assertions.assertEquals(1, arraySource.available());
         EOFException caughtException = Assertions.assertThrows(

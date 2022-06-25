@@ -23,6 +23,6 @@ public interface RawTexDataLoader {
      *
      * @see RawTexLoadTarget
      */
-    void load(InputStream in, int inputLength, RawTexLoadTarget loadTarget, int dataLength) throws IOException;
+    void load(InputStream in, long inputLength, RawTexLoadTarget loadTarget, long dataLength) throws IOException;
 
 }

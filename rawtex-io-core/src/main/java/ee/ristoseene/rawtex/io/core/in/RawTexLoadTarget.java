@@ -20,7 +20,7 @@ public interface RawTexLoadTarget {
      *
      * @see ByteBuffer
      */
-    ByteBuffer acquire(int offset, int remainingLength);
+    ByteBuffer acquire(long offset, long remainingLength);
 
     /**
      * Notifies that loading data into the remaining length of the specified buffer has either been completed
@@ -31,7 +31,7 @@ public interface RawTexLoadTarget {
      * <p>
      * The default implementation of this method is a NO-OP.
      *
-     * @param buffer a handle to the buffer that was previously acquired via the {@link #acquire(int, int) acquire}
+     * @param buffer a handle to the buffer that was previously acquired via the {@link #acquire(long, long) acquire}
      *               method
      * @param complete {@code true} if the remaining length of the specified buffer has been fully written to,
      *                 otherwise {@code false}

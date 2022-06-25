@@ -3,6 +3,8 @@ package ee.ristoseene.rawtex.io.core.common.test;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Stubber;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
@@ -37,6 +39,30 @@ public final class TestInputStreamUtils {
 
             return bytesRead.intValue();
         });
+    }
+
+    public static long getInputStreamLength(InputStream inputStream) throws IOException {
+        long length = 0L;
+
+        do {
+            final long skipped = inputStream.skip(Long.MAX_VALUE);
+
+            if (skipped > 0L) {
+                length += skipped;
+            } else if (skipped < 0L) {
+                throw new IllegalStateException("Invalid number of bytes skipped: " + skipped);
+            } else if (inputStream.read() < 0) {
+                break;
+            } else {
+                ++length;
+            }
+
+            if (length < 0L) {
+                throw new IllegalStateException("Length not representable using a 64-bit signed integer");
+            }
+        } while (true);
+
+        return length;
     }
 
     private TestInputStreamUtils() {

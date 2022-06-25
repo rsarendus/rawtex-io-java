@@ -11,6 +11,7 @@ import ee.ristoseene.rawtex.io.core.in.test.InputFactory;
 import ee.ristoseene.rawtex.io.core.in.test.NonDirectBufferFactory;
 import ee.ristoseene.rawtex.io.core.in.test.StreamInputFactory;
 import ee.ristoseene.rawtex.io.core.in.test.TargetBufferFactory;
+import ee.ristoseene.rawtex.io.core.in.test.TestFixedLengthLoadTarget;
 import ee.ristoseene.rawtex.io.core.in.test.TestLoadTarget;
 import ee.ristoseene.rawtex.io.deflate.common.format.DeflateCompressionFormatIndicator;
 import ee.ristoseene.rawtex.io.deflate.common.test.TestDeflateUtils;
@@ -36,14 +37,14 @@ class InflatingBlockDataLoaderSuccessTest {
     ) throws IOException {
         byte[] pixelData = TestBufferUtils.generateRandom8(blockCount);
         byte[] deflatedData = TestDeflateUtils.deflate(compressionFormatIndicator, pixelData);
-        int dataLength = blockCount * Byte.BYTES;
+        long dataLength = blockCount * (long) Byte.BYTES;
 
         InputStream in = inFactory.create(deflatedData);
         TestSimpleInflaterAllocator inflaterAllocator = new TestSimpleInflaterAllocator(compressionFormatIndicator);
         TestTransferBufferAllocator transferBufferAllocator = new TestStaticTransferBufferAllocator(TRANSFER_BUFFER_LENGTH, TRANSFER_BUFFER_LENGTH);
-        TestLoadTarget loadTarget = new TestLoadTarget(
+        TestLoadTarget loadTarget = new TestFixedLengthLoadTarget(
                 pixelData,
-                (o, l) -> outFactory.createFor(o, l).order(outEndianness)
+                (o, l) -> outFactory.create(l).order(outEndianness)
         );
 
         new InflatingBlockDataLoader(
@@ -67,14 +68,14 @@ class InflatingBlockDataLoaderSuccessTest {
     ) throws IOException {
         short[] pixelData = TestBufferUtils.generateRandom16(blockCount);
         byte[] deflatedData = TestDeflateUtils.deflate(compressionFormatIndicator, TestBufferUtils.toBytes(pixelData, endianness.byteOrder));
-        int dataLength = blockCount * Short.BYTES;
+        long dataLength = blockCount * (long) Short.BYTES;
 
         InputStream in = inFactory.create(deflatedData);
         TestSimpleInflaterAllocator inflaterAllocator = new TestSimpleInflaterAllocator(compressionFormatIndicator);
         TestTransferBufferAllocator transferBufferAllocator = new TestStaticTransferBufferAllocator(TRANSFER_BUFFER_LENGTH, TRANSFER_BUFFER_LENGTH);
-        TestLoadTarget loadTarget = new TestLoadTarget(
+        TestLoadTarget loadTarget = new TestFixedLengthLoadTarget(
                 TestBufferUtils.toBytes(pixelData, outEndianness),
-                (o, l) -> outFactory.createFor(o, l).order(outEndianness)
+                (o, l) -> outFactory.create(l).order(outEndianness)
         );
 
         new InflatingBlockDataLoader(
@@ -98,14 +99,14 @@ class InflatingBlockDataLoaderSuccessTest {
     ) throws IOException {
         int[] pixelData = TestBufferUtils.generateRandom32(blockCount);
         byte[] deflatedData = TestDeflateUtils.deflate(compressionFormatIndicator, TestBufferUtils.toBytes(pixelData, endianness.byteOrder));
-        int dataLength = blockCount * Integer.BYTES;
+        long dataLength = blockCount * (long) Integer.BYTES;
 
         InputStream in = inFactory.create(deflatedData);
         TestSimpleInflaterAllocator inflaterAllocator = new TestSimpleInflaterAllocator(compressionFormatIndicator);
         TestTransferBufferAllocator transferBufferAllocator = new TestStaticTransferBufferAllocator(TRANSFER_BUFFER_LENGTH, TRANSFER_BUFFER_LENGTH);
-        TestLoadTarget loadTarget = new TestLoadTarget(
+        TestLoadTarget loadTarget = new TestFixedLengthLoadTarget(
                 TestBufferUtils.toBytes(pixelData, outEndianness),
-                (o, l) -> outFactory.createFor(o, l).order(outEndianness)
+                (o, l) -> outFactory.create(l).order(outEndianness)
         );
 
         new InflatingBlockDataLoader(
@@ -129,14 +130,14 @@ class InflatingBlockDataLoaderSuccessTest {
     ) throws IOException {
         long[] pixelData = TestBufferUtils.generateRandom64(blockCount);
         byte[] deflatedData = TestDeflateUtils.deflate(compressionFormatIndicator, TestBufferUtils.toBytes(pixelData, endianness.byteOrder));
-        int dataLength = blockCount * Long.BYTES;
+        long dataLength = blockCount * (long) Long.BYTES;
 
         InputStream in = inFactory.create(deflatedData);
         TestSimpleInflaterAllocator inflaterAllocator = new TestSimpleInflaterAllocator(compressionFormatIndicator);
         TestTransferBufferAllocator transferBufferAllocator = new TestStaticTransferBufferAllocator(TRANSFER_BUFFER_LENGTH, TRANSFER_BUFFER_LENGTH);
-        TestLoadTarget loadTarget = new TestLoadTarget(
+        TestLoadTarget loadTarget = new TestFixedLengthLoadTarget(
                 TestBufferUtils.toBytes(pixelData, outEndianness),
-                (o, l) -> outFactory.createFor(o, l).order(outEndianness)
+                (o, l) -> outFactory.create(l).order(outEndianness)
         );
 
         new InflatingBlockDataLoader(

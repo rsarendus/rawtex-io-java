@@ -8,6 +8,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
 class BlockSizeTest {
@@ -83,6 +84,56 @@ class BlockSizeTest {
     static Stream<Arguments> blockSizeAndNonNegativeIntegerCombinations() {
         return Stream.of(BlockSize.values())
                 .flatMap(blockSize -> nonNegativeIntegersToTest()
+                        .mapToObj(i -> Arguments.of(blockSize, i))
+                );
+    }
+
+    @ParameterizedTest(name = "block size: {0}, value: {1}")
+    @MethodSource("blockSizeAndNonNegativeLongIntegerCombinations")
+    void testMultipleOfNonNegativeLongInteger(BlockSize blockSize, long value) {
+        long expectedResult = value * blockSize.octets;
+
+        long result = blockSize.multipleOf(value);
+        Assertions.assertEquals(expectedResult, result);
+    }
+
+    @ParameterizedTest(name = "block size: {0}, value: {1}")
+    @MethodSource("blockSizeAndNonNegativeLongIntegerCombinations")
+    void testQuotientOfNonNegativeLongInteger(BlockSize blockSize, long value) {
+        long expectedResult = value / blockSize.octets;
+
+        long result = blockSize.quotientOf(value);
+        Assertions.assertEquals(expectedResult, result);
+    }
+
+    @ParameterizedTest(name = "block size: {0}, value: {1}")
+    @MethodSource("blockSizeAndNonNegativeLongIntegerCombinations")
+    void testRemainderOfNonNegativeLongInteger(BlockSize blockSize, long value) {
+        long expectedResult = value % blockSize.octets;
+
+        long result = blockSize.remainderOf(value);
+        Assertions.assertEquals(expectedResult, result);
+    }
+
+    @ParameterizedTest(name = "block size: {0}, value: {1}")
+    @MethodSource("blockSizeAndNonNegativeLongIntegerCombinations")
+    void testTruncateNonNegativeLongInteger(BlockSize blockSize, long value) {
+        long expectedResult = value - (value % blockSize.octets);
+
+        long result = blockSize.truncate(value);
+        Assertions.assertEquals(expectedResult, result);
+    }
+
+    static LongStream nonNegativeLongIntegersToTest() {
+        return LongStream.concat(
+                nonNegativeIntegersToTest().asLongStream(),
+                LongStream.of(Integer.MAX_VALUE, Integer.MAX_VALUE + 1L, Integer.MAX_VALUE * 17L)
+        );
+    }
+
+    static Stream<Arguments> blockSizeAndNonNegativeLongIntegerCombinations() {
+        return Stream.of(BlockSize.values())
+                .flatMap(blockSize -> nonNegativeLongIntegersToTest()
                         .mapToObj(i -> Arguments.of(blockSize, i))
                 );
     }

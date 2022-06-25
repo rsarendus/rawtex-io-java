@@ -28,6 +28,6 @@ public interface RawTexLoadTargetFactory<IF> {
      * @see java.nio.ByteBuffer#order()
      * @see java.nio.ByteBuffer#order(ByteOrder) 
      */
-    RawTexLoadTarget create(IF imageFormat, ImageExtents imageExtents, ByteOrder byteOrder, int totalDataLength);
+    RawTexLoadTarget create(IF imageFormat, ImageExtents imageExtents, ByteOrder byteOrder, long totalDataLength);
 
 }

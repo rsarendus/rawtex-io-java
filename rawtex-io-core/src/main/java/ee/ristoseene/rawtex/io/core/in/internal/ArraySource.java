@@ -8,7 +8,7 @@ import java.io.InputStream;
 /**
  * A thin non-thread-safe implementation of {@link InputStream}, wrapping a byte array.
  * The backing byte array is accessible and can be used in conjunction with the
- * {@link #ensureAvailableAndAdvance(int)} method.
+ * {@link #ensureAvailableAndAdvance(long)} method.
  * <p>
  * This class does not override the default implementations of the {@link #mark(int) mark}
  * and {@link #reset() reset} methods of the {@link InputStream} class.
@@ -79,16 +79,18 @@ public class ArraySource extends InputStream {
      *
      * @throws EOFException if {@code amount} is greater than the number of remaining bytes in this stream
      */
-    public int ensureAvailableAndAdvance(int amount) throws EOFException {
+    public int ensureAvailableAndAdvance(long amount) throws EOFException {
         if (amount > available) {
             throw CommonIO.unexpectedEndOfInputException();
         }
 
         final int initialPosition = position;
 
-        if (amount > 0) {
-            position += amount;
-            available -= amount;
+        if (amount > 0L) {
+            final int intAmount = (int) amount;
+
+            position += intAmount;
+            available -= intAmount;
         }
 
         return initialPosition;

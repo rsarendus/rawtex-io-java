@@ -39,7 +39,7 @@ class RawBlockDataLoaderFailureTest {
     void testLoadFailsOnInputLengthAndDataLengthMismatch(Endianness endianness, BlockSize blockSize) {
         RawTexDataLoader dataLoader = new RawBlockDataLoader(endianness, blockSize, transferBufferAllocator);
         InputStream in = Mockito.mock(InputStream.class);
-        int invalidInputLength = blockSize.octets + 1;
+        long invalidInputLength = blockSize.octets + 1L;
 
         IllegalArgumentException caughtException = Assertions.assertThrows(
                 IllegalArgumentException.class,
@@ -65,7 +65,7 @@ class RawBlockDataLoaderFailureTest {
     void testLoadFailsOnDataLengthNotMultipleOfBlockSize(Endianness endianness, BlockSize blockSize) {
         RawTexDataLoader dataLoader = new RawBlockDataLoader(endianness, blockSize, transferBufferAllocator);
         InputStream in = Mockito.mock(InputStream.class);
-        int invalidDataLength = blockSize.octets + 1;
+        long invalidDataLength = blockSize.octets + 1L;
 
         IllegalArgumentException caughtException = Assertions.assertThrows(
                 IllegalArgumentException.class,
@@ -93,7 +93,7 @@ class RawBlockDataLoaderFailureTest {
         RawTexDataLoader dataLoader = new RawBlockDataLoader(endianness, blockSize, transferBufferAllocator);
         InputStream in = Mockito.mock(inputType);
 
-        Mockito.doReturn(null).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
+        Mockito.doReturn(null).when(loadTarget).acquire(Mockito.anyLong(), Mockito.anyLong());
 
         NullPointerException caughtException = Assertions.assertThrows(
                 NullPointerException.class,
@@ -104,7 +104,7 @@ class RawBlockDataLoaderFailureTest {
         if (in instanceof ArraySource) {
             Mockito.verify((ArraySource) in).ensureAvailableAndAdvance(blockSize.octets);
         }
-        Mockito.verify(loadTarget).acquire(0, blockSize.octets);
+        Mockito.verify(loadTarget).acquire(0L, blockSize.octets);
         Mockito.verifyNoMoreInteractions(transferBufferAllocator, in, loadTarget);
     }
 
@@ -115,7 +115,7 @@ class RawBlockDataLoaderFailureTest {
         InputStream in = Mockito.mock(inputType);
 
         ByteBuffer readOnlyTarget = ByteBuffer.allocate(blockSize.octets).order(endianness.byteOrder).asReadOnlyBuffer();
-        Mockito.doReturn(readOnlyTarget).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
+        Mockito.doReturn(readOnlyTarget).when(loadTarget).acquire(Mockito.anyLong(), Mockito.anyLong());
 
         IllegalStateException caughtException = Assertions.assertThrows(
                 IllegalStateException.class,
@@ -126,7 +126,7 @@ class RawBlockDataLoaderFailureTest {
         if (in instanceof ArraySource) {
             Mockito.verify((ArraySource) in).ensureAvailableAndAdvance(blockSize.octets);
         }
-        Mockito.verify(loadTarget).acquire(0, blockSize.octets);
+        Mockito.verify(loadTarget).acquire(0L, blockSize.octets);
         Mockito.verify(loadTarget).release(readOnlyTarget, false);
         Mockito.verifyNoMoreInteractions(transferBufferAllocator, in, loadTarget);
     }
@@ -139,7 +139,7 @@ class RawBlockDataLoaderFailureTest {
 
         int invalidTargetLength = blockSize.octets - 1;
         ByteBuffer targetBuffer = ByteBuffer.allocate(invalidTargetLength).order(endianness.byteOrder);
-        Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
+        Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyLong(), Mockito.anyLong());
 
         IllegalStateException caughtException = Assertions.assertThrows(
                 IllegalStateException.class,
@@ -150,7 +150,7 @@ class RawBlockDataLoaderFailureTest {
         if (in instanceof ArraySource) {
             Mockito.verify((ArraySource) in).ensureAvailableAndAdvance(blockSize.octets);
         }
-        Mockito.verify(loadTarget).acquire(0, blockSize.octets);
+        Mockito.verify(loadTarget).acquire(0L, blockSize.octets);
         Mockito.verify(loadTarget).release(targetBuffer, false);
         Mockito.verifyNoMoreInteractions(transferBufferAllocator, in, loadTarget);
     }
@@ -163,7 +163,7 @@ class RawBlockDataLoaderFailureTest {
 
         int tooLongTargetLength = blockSize.octets * 2;
         ByteBuffer targetBuffer = ByteBuffer.allocate(tooLongTargetLength).order(endianness.byteOrder);
-        Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
+        Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyLong(), Mockito.anyLong());
 
         IllegalStateException caughtException = Assertions.assertThrows(
                 IllegalStateException.class,
@@ -174,7 +174,7 @@ class RawBlockDataLoaderFailureTest {
         if (in instanceof ArraySource) {
             Mockito.verify((ArraySource) in).ensureAvailableAndAdvance(blockSize.octets);
         }
-        Mockito.verify(loadTarget).acquire(0, blockSize.octets);
+        Mockito.verify(loadTarget).acquire(0L, blockSize.octets);
         Mockito.verify(loadTarget).release(targetBuffer, false);
         Mockito.verifyNoMoreInteractions(transferBufferAllocator, in, loadTarget);
     }
@@ -211,8 +211,8 @@ class RawBlockDataLoaderFailureTest {
         RawTexLoadTarget loadTarget = Mockito.mock(RawTexLoadTarget.class);
         InputStream in = new ByteArrayInputStream(new byte[blockSize.octets - 1]);
 
-        ByteBuffer targetBuffer = outFactory.createFor(0, blockSize.octets).order(outByteOrder);
-        Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
+        ByteBuffer targetBuffer = outFactory.create(blockSize.octets).order(outByteOrder);
+        Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyLong(), Mockito.anyLong());
 
         byte[] transferBuffer = null;
         if (needsTransferBuffer(endianness, blockSize, targetBuffer)) {
@@ -226,7 +226,7 @@ class RawBlockDataLoaderFailureTest {
         );
 
         Assertions.assertEquals("Unexpected end of input", caughtException.getMessage());
-        Mockito.verify(loadTarget).acquire(0, blockSize.octets);
+        Mockito.verify(loadTarget).acquire(0L, blockSize.octets);
         Mockito.verify(loadTarget).release(targetBuffer, false);
         if (transferBuffer != null) {
             int minimumTransferBufferLength = getMinimumTransferBufferLength(endianness, blockSize, targetBuffer);
@@ -243,8 +243,8 @@ class RawBlockDataLoaderFailureTest {
         RawTexLoadTarget loadTarget = Mockito.mock(RawTexLoadTarget.class);
         InputStream in = new ByteArrayInputStream(new byte[blockSize.octets]);
 
-        ByteBuffer targetBuffer = outFactory.createFor(0, blockSize.octets).order(outByteOrder);
-        Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
+        ByteBuffer targetBuffer = outFactory.create(blockSize.octets).order(outByteOrder);
+        Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyLong(), Mockito.anyLong());
 
         if (needsTransferBuffer(endianness, blockSize, targetBuffer)) {
             Mockito.doReturn(null).when(transferBufferAllocator).allocate(Mockito.anyInt(), Mockito.anyInt());
@@ -255,14 +255,14 @@ class RawBlockDataLoaderFailureTest {
             );
 
             Assertions.assertEquals("Transfer buffer is missing", caughtException.getMessage());
-            Mockito.verify(loadTarget).acquire(0, blockSize.octets);
+            Mockito.verify(loadTarget).acquire(0L, blockSize.octets);
             Mockito.verify(loadTarget).release(targetBuffer, false);
             int minimumTransferBufferLength = getMinimumTransferBufferLength(endianness, blockSize, targetBuffer);
             Mockito.verify(transferBufferAllocator).allocate(minimumTransferBufferLength, blockSize.octets);
         } else {
             dataLoader.load(in, blockSize.octets, loadTarget, blockSize.octets);
 
-            Mockito.verify(loadTarget).acquire(0, blockSize.octets);
+            Mockito.verify(loadTarget).acquire(0L, blockSize.octets);
             Mockito.verify(loadTarget).release(targetBuffer, true);
         }
 
@@ -276,8 +276,8 @@ class RawBlockDataLoaderFailureTest {
         RawTexLoadTarget loadTarget = Mockito.mock(RawTexLoadTarget.class);
         InputStream in = new ByteArrayInputStream(new byte[blockSize.octets]);
 
-        ByteBuffer targetBuffer = outFactory.createFor(0, blockSize.octets).order(outByteOrder);
-        Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
+        ByteBuffer targetBuffer = outFactory.create(blockSize.octets).order(outByteOrder);
+        Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyLong(), Mockito.anyLong());
 
         if (needsTransferBuffer(endianness, blockSize, targetBuffer)) {
             int minimumTransferBufferLength = getMinimumTransferBufferLength(endianness, blockSize, targetBuffer);
@@ -290,14 +290,14 @@ class RawBlockDataLoaderFailureTest {
             );
 
             Assertions.assertEquals("Transfer buffer too short: " + (minimumTransferBufferLength - 1), caughtException.getMessage());
-            Mockito.verify(loadTarget).acquire(0, blockSize.octets);
+            Mockito.verify(loadTarget).acquire(0L, blockSize.octets);
             Mockito.verify(loadTarget).release(targetBuffer, false);
             Mockito.verify(transferBufferAllocator).allocate(minimumTransferBufferLength, blockSize.octets);
             Mockito.verify(transferBufferAllocator).free(transferBuffer);
         } else {
             dataLoader.load(in, blockSize.octets, loadTarget, blockSize.octets);
 
-            Mockito.verify(loadTarget).acquire(0, blockSize.octets);
+            Mockito.verify(loadTarget).acquire(0L, blockSize.octets);
             Mockito.verify(loadTarget).release(targetBuffer, true);
         }
 

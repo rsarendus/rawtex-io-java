@@ -37,8 +37,8 @@ class InflatingBlockDataLoaderFailureTest {
     void testLoadFailsOnDataLengthNotMultipleOfBlockSize(Endianness endianness, BlockSize blockSize) {
         RawTexDataLoader dataLoader = new InflatingBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
         InputStream in = Mockito.mock(InputStream.class);
-        int inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
-        int invalidDataLength = blockSize.octets + 1;
+        long inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
+        long invalidDataLength = blockSize.octets + 1L;
 
         IllegalArgumentException caughtException = Assertions.assertThrows(
                 IllegalArgumentException.class,
@@ -65,7 +65,7 @@ class InflatingBlockDataLoaderFailureTest {
     void testLoadFailsOnTooShortInputLength(Endianness endianness, BlockSize blockSize) {
         RawTexDataLoader dataLoader = new InflatingBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
         InputStream in = Mockito.mock(InputStream.class);
-        int invalidInputLength = 0;
+        long invalidInputLength = 0L;
 
         IllegalArgumentException caughtException = Assertions.assertThrows(
                 IllegalArgumentException.class,
@@ -84,7 +84,7 @@ class InflatingBlockDataLoaderFailureTest {
     void testLoadFailsOnMissingInflater(Endianness endianness, BlockSize blockSize, Class<? extends InputStream> inputType) {
         RawTexDataLoader dataLoader = new InflatingBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
         InputStream in = Mockito.mock(inputType);
-        int inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
+        long inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
 
         Mockito.doReturn(null).when(inflaterAllocator).allocate();
 
@@ -103,7 +103,7 @@ class InflatingBlockDataLoaderFailureTest {
     void testLoadFailsOnInflaterNeedsDictionary(Endianness endianness, BlockSize blockSize, Class<? extends InputStream> inputType) {
         RawTexDataLoader dataLoader = new InflatingBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
         InputStream in = Mockito.mock(inputType);
-        int inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
+        long inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
         Inflater inflater = Mockito.mock(Inflater.class);
 
         Mockito.doReturn(inflater).when(inflaterAllocator).allocate();
@@ -126,7 +126,7 @@ class InflatingBlockDataLoaderFailureTest {
     void testLoadFailsOnInflaterDoesNotNeedInput(Endianness endianness, BlockSize blockSize, Class<? extends InputStream> inputType) {
         RawTexDataLoader dataLoader = new InflatingBlockDataLoader(endianness, blockSize, inflaterAllocator, transferBufferAllocator);
         InputStream in = Mockito.mock(inputType);
-        int inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
+        long inputLength = dataLengthToValidDeflatedLength(blockSize.octets);
         Inflater inflater = Mockito.mock(Inflater.class);
 
         Mockito.doReturn(inflater).when(inflaterAllocator).allocate();
@@ -161,7 +161,7 @@ class InflatingBlockDataLoaderFailureTest {
             Mockito.doReturn(readBuffer).when(transferBufferAllocator).allocate(Mockito.anyInt(), Mockito.anyInt());
             Mockito.doReturn(inputLength).when(in).read(Mockito.any(byte[].class), Mockito.anyInt(), Mockito.anyInt());
         }
-        Mockito.doReturn(null).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
+        Mockito.doReturn(null).when(loadTarget).acquire(Mockito.anyLong(), Mockito.anyLong());
 
         NullPointerException caughtException = Assertions.assertThrows(
                 NullPointerException.class,
@@ -181,7 +181,7 @@ class InflatingBlockDataLoaderFailureTest {
             Mockito.verify(inflater).setInput(readBuffer, 0, inputLength);
             Mockito.verify(transferBufferAllocator).free(readBuffer);
         }
-        Mockito.verify(loadTarget).acquire(0, blockSize.octets);
+        Mockito.verify(loadTarget).acquire(0L, blockSize.octets);
         Mockito.verify(inflater).reset();
         Mockito.verify(inflaterAllocator).free(inflater);
         Mockito.verifyNoMoreInteractions(inflaterAllocator, inflater, transferBufferAllocator, in, loadTarget);
@@ -203,7 +203,7 @@ class InflatingBlockDataLoaderFailureTest {
             Mockito.doReturn(inputLength).when(in).read(Mockito.any(byte[].class), Mockito.anyInt(), Mockito.anyInt());
         }
         ByteBuffer readOnlyTarget = ByteBuffer.allocate(blockSize.octets).order(endianness.byteOrder).asReadOnlyBuffer();
-        Mockito.doReturn(readOnlyTarget).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
+        Mockito.doReturn(readOnlyTarget).when(loadTarget).acquire(Mockito.anyLong(), Mockito.anyLong());
 
         IllegalStateException caughtException = Assertions.assertThrows(
                 IllegalStateException.class,
@@ -223,7 +223,7 @@ class InflatingBlockDataLoaderFailureTest {
             Mockito.verify(inflater).setInput(readBuffer, 0, inputLength);
             Mockito.verify(transferBufferAllocator).free(readBuffer);
         }
-        Mockito.verify(loadTarget).acquire(0, blockSize.octets);
+        Mockito.verify(loadTarget).acquire(0L, blockSize.octets);
         Mockito.verify(loadTarget).release(readOnlyTarget, false);
         Mockito.verify(inflater).reset();
         Mockito.verify(inflaterAllocator).free(inflater);
@@ -247,7 +247,7 @@ class InflatingBlockDataLoaderFailureTest {
         }
         int invalidTargetLength = blockSize.octets - 1;
         ByteBuffer targetBuffer = ByteBuffer.allocate(invalidTargetLength).order(endianness.byteOrder);
-        Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
+        Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyLong(), Mockito.anyLong());
 
         IllegalStateException caughtException = Assertions.assertThrows(
                 IllegalStateException.class,
@@ -267,7 +267,7 @@ class InflatingBlockDataLoaderFailureTest {
             Mockito.verify(inflater).setInput(readBuffer, 0, inputLength);
             Mockito.verify(transferBufferAllocator).free(readBuffer);
         }
-        Mockito.verify(loadTarget).acquire(0, blockSize.octets);
+        Mockito.verify(loadTarget).acquire(0L, blockSize.octets);
         Mockito.verify(loadTarget).release(targetBuffer, false);
         Mockito.verify(inflater).reset();
         Mockito.verify(inflaterAllocator).free(inflater);
@@ -291,7 +291,7 @@ class InflatingBlockDataLoaderFailureTest {
         }
         int tooLongTargetLength = blockSize.octets * 2;
         ByteBuffer targetBuffer = ByteBuffer.allocate(tooLongTargetLength).order(endianness.byteOrder);
-        Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyInt(), Mockito.anyInt());
+        Mockito.doReturn(targetBuffer).when(loadTarget).acquire(Mockito.anyLong(), Mockito.anyLong());
 
         IllegalStateException caughtException = Assertions.assertThrows(
                 IllegalStateException.class,
@@ -311,7 +311,7 @@ class InflatingBlockDataLoaderFailureTest {
             Mockito.verify(inflater).setInput(readBuffer, 0, inputLength);
             Mockito.verify(transferBufferAllocator).free(readBuffer);
         }
-        Mockito.verify(loadTarget).acquire(0, blockSize.octets);
+        Mockito.verify(loadTarget).acquire(0L, blockSize.octets);
         Mockito.verify(loadTarget).release(targetBuffer, false);
         Mockito.verify(inflater).reset();
         Mockito.verify(inflaterAllocator).free(inflater);

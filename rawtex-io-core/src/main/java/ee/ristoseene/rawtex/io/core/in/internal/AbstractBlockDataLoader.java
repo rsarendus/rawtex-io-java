@@ -46,8 +46,8 @@ public abstract class AbstractBlockDataLoader {
      * @throws IllegalArgumentException if {@code dataLength} is less than the block size
      * of the data to load or not a valid multiple of the block size of the data to load
      */
-    protected void ensureDataLengthIsValidMultipleOfBlockSize(int dataLength) {
-        if (dataLength < blockSize.octets || blockSize.remainderOf(dataLength) != 0) {
+    protected void ensureDataLengthIsValidMultipleOfBlockSize(long dataLength) {
+        if (dataLength < blockSize.octets || blockSize.remainderOf(dataLength) != 0L) {
             throw new IllegalArgumentException(String.format(
                     "Data length (%d) is not a valid multiple of block size (%d)",
                     dataLength, blockSize.octets
@@ -93,7 +93,7 @@ public abstract class AbstractBlockDataLoader {
      * @see ByteBuffer#isReadOnly()
      * @see ByteBuffer#remaining()
      */
-    protected int validateTargetBufferAndReturnLength(ByteBuffer targetBuffer, int remainingDataLength) {
+    protected int validateTargetBufferAndReturnLength(ByteBuffer targetBuffer, long remainingDataLength) {
         if (targetBuffer.isReadOnly()) {
             throw new IllegalStateException("Target buffer is read-only");
         }

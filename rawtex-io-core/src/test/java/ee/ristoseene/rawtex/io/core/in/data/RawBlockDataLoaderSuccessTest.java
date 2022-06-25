@@ -11,6 +11,7 @@ import ee.ristoseene.rawtex.io.core.in.test.InputFactory;
 import ee.ristoseene.rawtex.io.core.in.test.NonDirectBufferFactory;
 import ee.ristoseene.rawtex.io.core.in.test.StreamInputFactory;
 import ee.ristoseene.rawtex.io.core.in.test.TargetBufferFactory;
+import ee.ristoseene.rawtex.io.core.in.test.TestFixedLengthLoadTarget;
 import ee.ristoseene.rawtex.io.core.in.test.TestLoadTarget;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -29,13 +30,13 @@ class RawBlockDataLoaderSuccessTest {
     @ParameterizedTest(name = "in: [{0}, {1}], out: [{2}, {3}], block count: {4}")
     void testLoad8(Endianness endianness, InputFactory inFactory, ByteOrder outByteOrder, TargetBufferFactory outFactory, int blockCount) throws IOException {
         byte[] pixelData = TestBufferUtils.generateRandom8(blockCount);
-        int length = blockCount * Byte.BYTES;
+        long length = blockCount * (long) Byte.BYTES;
 
         InputStream in = inFactory.create(pixelData.clone());
         TestTransferBufferAllocator transferBufferAllocator = new TestStaticTransferBufferAllocator(TRANSFER_BUFFER_LENGTH);
-        TestLoadTarget loadTarget = new TestLoadTarget(
+        TestLoadTarget loadTarget = new TestFixedLengthLoadTarget(
                 pixelData,
-                (o, l) -> outFactory.createFor(o, l).order(outByteOrder)
+                (o, l) -> outFactory.create(l).order(outByteOrder)
         );
 
         new RawBlockDataLoader(
@@ -53,13 +54,13 @@ class RawBlockDataLoaderSuccessTest {
     @ParameterizedTest(name = "in: [{0}, {1}], out: [{2}, {3}], block count: {4}")
     void testLoad16(Endianness endianness, InputFactory inFactory, ByteOrder outByteOrder, TargetBufferFactory outFactory, int blockCount) throws IOException {
         short[] pixelData = TestBufferUtils.generateRandom16(blockCount);
-        int length = blockCount * Short.BYTES;
+        long length = blockCount * (long) Short.BYTES;
 
         InputStream in = inFactory.create(TestBufferUtils.toBytes(pixelData, endianness.byteOrder));
         TestTransferBufferAllocator transferBufferAllocator = new TestStaticTransferBufferAllocator(TRANSFER_BUFFER_LENGTH);
-        TestLoadTarget loadTarget = new TestLoadTarget(
+        TestLoadTarget loadTarget = new TestFixedLengthLoadTarget(
                 TestBufferUtils.toBytes(pixelData, outByteOrder),
-                (o, l) -> outFactory.createFor(o, l).order(outByteOrder)
+                (o, l) -> outFactory.create(l).order(outByteOrder)
         );
 
         new RawBlockDataLoader(
@@ -77,13 +78,13 @@ class RawBlockDataLoaderSuccessTest {
     @ParameterizedTest(name = "in: [{0}, {1}], out: [{2}, {3}], block count: {4}")
     void testLoad32(Endianness endianness, InputFactory inFactory, ByteOrder outByteOrder, TargetBufferFactory outFactory, int blockCount) throws IOException {
         int[] pixelData = TestBufferUtils.generateRandom32(blockCount);
-        int length = blockCount * Integer.BYTES;
+        long length = blockCount * (long) Integer.BYTES;
 
         InputStream in = inFactory.create(TestBufferUtils.toBytes(pixelData, endianness.byteOrder));
         TestTransferBufferAllocator transferBufferAllocator = new TestStaticTransferBufferAllocator(TRANSFER_BUFFER_LENGTH);
-        TestLoadTarget loadTarget = new TestLoadTarget(
+        TestLoadTarget loadTarget = new TestFixedLengthLoadTarget(
                 TestBufferUtils.toBytes(pixelData, outByteOrder),
-                (o, l) -> outFactory.createFor(o, l).order(outByteOrder)
+                (o, l) -> outFactory.create(l).order(outByteOrder)
         );
 
         new RawBlockDataLoader(
@@ -101,13 +102,13 @@ class RawBlockDataLoaderSuccessTest {
     @ParameterizedTest(name = "in: [{0}, {1}], out: [{2}, {3}], block count: {4}")
     void testLoad64(Endianness endianness, InputFactory inFactory, ByteOrder outByteOrder, TargetBufferFactory outFactory, int blockCount) throws IOException {
         long[] pixelData = TestBufferUtils.generateRandom64(blockCount);
-        int length = blockCount * Long.BYTES;
+        long length = blockCount * (long) Long.BYTES;
 
         InputStream in = inFactory.create(TestBufferUtils.toBytes(pixelData, endianness.byteOrder));
         TestTransferBufferAllocator transferBufferAllocator = new TestStaticTransferBufferAllocator(TRANSFER_BUFFER_LENGTH);
-        TestLoadTarget loadTarget = new TestLoadTarget(
+        TestLoadTarget loadTarget = new TestFixedLengthLoadTarget(
                 TestBufferUtils.toBytes(pixelData, outByteOrder),
-                (o, l) -> outFactory.createFor(o, l).order(outByteOrder)
+                (o, l) -> outFactory.create(l).order(outByteOrder)
         );
 
         new RawBlockDataLoader(
